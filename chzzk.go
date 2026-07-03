@@ -30,8 +30,9 @@ type Chzzk struct {
 	c *http.Client
 
 	// The services
-	Token *TokenService
-	User  *UserService
+	Token   *TokenService
+	User    *UserService
+	Session *SessionService
 }
 
 func NewChzzk(c *http.Client) *Chzzk {
@@ -54,6 +55,44 @@ func NewChzzk(c *http.Client) *Chzzk {
 	chz := &Chzzk{c: c}
 	chz.initialize()
 	return chz
+}
+
+// OnSuccess is a struct that Chzzk always returns if the request is successful,
+// with any type on Content field.
+//
+// Each Service should embed OnSuccess to its own response struct,
+// including the Content field with the actual response type.
+type OnSuccess struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	// Content any
+}
+
+// WithClientAuth returns a new Chzzk client with the provided client ID and secret.
+// You must either use WithClientAuth or WithAPIKey, not both. Using both will cause unexpected behavior.
+//
+// Check the Chzzk API documentation to see further details: https://chzzk.gitbook.io/chzzk/chzzk-api/tips#access-token-api
+func (chz *Chzzk) WithClientAuth(ID, secret string) *Chzzk {
+	chz2 := chz.copy()
+
+	originalTransport := chz2.c.Transport
+	if originalTransport == nil {
+		originalTransport = http.DefaultTransport
+	}
+
+	chz2.c.Transport = roundTripperFunc(
+		func(req *http.Request) (*http.Response, error) {
+			req2 := req.Clone(req.Context())
+
+			req2.Header.Set("Content-Type", ContentType)
+			req2.Header.Set("Client-Id", ID)
+			req2.Header.Set("Client-Secret", secret)
+
+			return originalTransport.RoundTrip(req2)
+		},
+	)
+
+	return chz2
 }
 
 // WithAPIKey returns a new Chzzk client with the provided API key.
@@ -117,6 +156,7 @@ func (chz *Chzzk) WithHooks(bef func(req *http.Request), aft func(resp *http.Res
 func (chz *Chzzk) initialize() {
 	chz.User = &UserService{chzzk: chz}
 	chz.Token = &TokenService{chzzk: chz}
+	chz.Session = &SessionService{chzzk: chz}
 }
 
 // copy copies the Chzzk client, returning a new instance with the same configuration.
