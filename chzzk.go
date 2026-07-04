@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	Version     = "0.0.1"
+	Version     = "0.0.4"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
 	ContentType = "application/json"
+	UserAgent   = "chzzk-go/" + Version
 )
 
 var (
@@ -53,6 +54,20 @@ func NewChzzk(c *http.Client) *Chzzk {
 		cp := *c
 		c = &cp
 	}
+
+	// We always set the User-Agent header for all requests.
+	originalTransport := c.Transport
+	if originalTransport == nil {
+		originalTransport = http.DefaultTransport
+	}
+
+	c.Transport = roundTripperFunc(
+		func(req *http.Request) (*http.Response, error) {
+			req2 := req.Clone(req.Context())
+			req2.Header.Set("User-Agent", UserAgent)
+			return originalTransport.RoundTrip(req2)
+		},
+	)
 	chz := &Chzzk{c: c}
 	chz.initialize()
 	return chz
