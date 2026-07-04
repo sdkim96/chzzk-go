@@ -9,7 +9,8 @@ import (
 const (
 	Version     = "0.0.1"
 	BaseURL     = "https://openapi.chzzk.naver.com"
-	V1          = "/open/v1"
+	OpenV1      = "/open/v1"
+	AuthV1      = "/auth/v1"
 	ContentType = "application/json"
 )
 

@@ -20,7 +20,7 @@ const prefixSession = "/sessions"
 //   - Chat messages
 //   - Subscription events
 func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
-	urlStr, err := url.JoinPath(BaseURL, V1, prefixSession, "auth", "client")
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
@@ -28,7 +28,7 @@ func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
 }
 
 func (s *SessionService) AuthUser(ctx context.Context) (string, error) {
-	urlStr, err := url.JoinPath(BaseURL, V1, prefixSession, "auth")
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}

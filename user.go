@@ -21,7 +21,7 @@ type User struct {
 }
 
 func (s *UserService) Me(ctx context.Context) (*User, error) {
-	url, err := url.JoinPath(BaseURL, V1, prefixUser, "me")
+	url, err := url.JoinPath(BaseURL, OpenV1, prefixUser, "me")
 	if err != nil {
 		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
