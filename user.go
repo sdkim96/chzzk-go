@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // UserService handles APIs prefixed with /users
@@ -20,7 +21,10 @@ type User struct {
 }
 
 func (s *UserService) Me(ctx context.Context) (*User, error) {
-	url := fmt.Sprintf("%s%s%s/me", BaseURL, V1, prefixUser)
+	url, err := url.JoinPath(BaseURL, V1, prefixUser, "me")
+	if err != nil {
+		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

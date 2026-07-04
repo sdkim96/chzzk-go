@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 type TokenService struct {
@@ -39,7 +40,10 @@ type RevokeTokenRequest struct {
 }
 
 func (s *TokenService) GetToken(ctx context.Context, r TokenRequest) (*TokenResponse, error) {
-	url := fmt.Sprintf("%s%s%s", BaseURL, V1, prefixToken)
+	url, err := url.JoinPath(BaseURL, V1, prefixToken)
+	if err != nil {
+		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
 	jsonData, err := json.Marshal(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal token request: %w", err)
@@ -68,7 +72,10 @@ func (s *TokenService) GetToken(ctx context.Context, r TokenRequest) (*TokenResp
 	return &tokenResp, nil
 }
 func (s *TokenService) UpdateToken(ctx context.Context, r TokenRequest) (*TokenResponse, error) {
-	url := fmt.Sprintf("%s%s%s", BaseURL, V1, prefixToken)
+	url, err := url.JoinPath(BaseURL, V1, prefixToken)
+	if err != nil {
+		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
 	jsonData, err := json.Marshal(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal token request: %w", err)
@@ -97,7 +104,10 @@ func (s *TokenService) UpdateToken(ctx context.Context, r TokenRequest) (*TokenR
 	return &tokenResp, nil
 }
 func (s *TokenService) RevokeToken(ctx context.Context, r RevokeTokenRequest) error {
-	url := fmt.Sprintf("%s%s%s/revoke", BaseURL, V1, prefixToken)
+	url, err := url.JoinPath(BaseURL, V1, prefixToken, "revoke")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
 	jsonData, err := json.Marshal(r)
 	if err != nil {
 		return err
