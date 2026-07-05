@@ -1,3 +1,5 @@
+//go:build integration
+
 // socketio_integration_test.go
 package socketio_test
 
@@ -32,19 +34,19 @@ func Test_Dial_socketio_echo_Integration(t *testing.T) {
 }
 
 // Test_Dial_chzzk_Integration tests against real Chzzk session API.
-// Requires CHZZK_CLIENT_ID and CHZZK_SECRET_KEY env vars.
+// Requires CHZZK_CLIENT_ID and CHZZK_CLIENT_SECRET env vars.
 func Test_Dial_chzzk_Integration(t *testing.T) {
 	clientID := os.Getenv("CHZZK_CLIENT_ID")
-	clientSecret := os.Getenv("CHZZK_SECRET_KEY")
+	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
 	if clientID == "" || clientSecret == "" {
-		t.Skip("CHZZK_CLIENT_ID or CHZZK_SECRET_KEY not set")
+		t.Skip("CHZZK_CLIENT_ID or CHZZK_CLIENT_SECRET not set")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	// Step 1: Get session URL from Chzzk API
-	c := chzzk.NewChzzk(nil).WithClientAuth(clientID, clientSecret)
+	c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 	sessionURL, err := c.Session.AuthClient(ctx)
 	if err != nil {
 		t.Fatalf("AuthClient() error = %v", err)

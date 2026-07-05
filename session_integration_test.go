@@ -1,3 +1,5 @@
+//go:build integration
+
 package chzzk
 
 import (
@@ -6,10 +8,10 @@ import (
 	"testing"
 )
 
-func Test_AuthClient(t *testing.T) {
+func Test_AuthClient1(t *testing.T) {
 	clientID := os.Getenv("CHZZK_CLIENT_ID")
-	clientSecret := os.Getenv("CHZZK_SECRET_KEY")
-	chzzk := NewChzzk(nil).WithClientAuth(clientID, clientSecret)
+	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
+	chzzk := New(nil).WithClientAuth(clientID, clientSecret)
 
 	ctx := context.TODO()
 	url, err := chzzk.Session.AuthClient(ctx)
@@ -22,8 +24,8 @@ func Test_AuthClient(t *testing.T) {
 	t.Logf("AuthClient URL: %s", url)
 }
 
-func Test_AuthUser(t *testing.T) {
-	chzzk := NewChzzk(nil).WithAPIKey("_")
+func Test_AuthUser1(t *testing.T) {
+	chzzk := New(nil).WithAPIKey("_")
 
 	ctx := context.Background()
 	url, err := chzzk.Session.AuthUser(ctx)
