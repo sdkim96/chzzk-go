@@ -1,17 +1,14 @@
 # chzzk-go
 
-chzzk-go is a Go client library for accessing [Chzzk](https://chzzk.naver.com). This library provides APIs via official ways only.  
+[Chzzk](https://chzzk.naver.com) 공식 API를 위한 Go 클라이언트 라이브러리입니다.
 
-Korean Documentation is available:
-- [한국어 문서](docs/README.kr.md)
+[English](../README.md)
 
-## Installation
+## 설치
 
 `go get github.com/sdkim96/chzzk-go`
 
-will resolve and add external dependencies.
-
-## Usage
+## 사용법
 
 ```go
 
@@ -31,70 +28,67 @@ func main() {
 }
 ```
 
-To use this example, you should register your application to Chzzk.
+이 예제를 사용하려면 치지직에 애플리케이션을 등록해야 합니다.
 
-### How to Make Application
+### 애플리케이션 등록
 
-First of all, You must register your application to Chzzk server.
-Open the browser, access to https://developers.chzzk.naver.com
+브라우저에서 https://developers.chzzk.naver.com 에 접속합니다.
 
-![alt text](docs/image.png)
+![alt text](image.png)
 
-You can register your application like this.
+아래와 같이 애플리케이션을 등록합니다.
 
-![alt text](docs/image1.png)
+![alt text](image1.png)
 
-> Note: You MUST fill the redirection URL field out `http://localhost:57777/callback`.
+> 주의: 리다이렉션 URL은 반드시 `http://localhost:57777/callback`으로 입력해야 합니다.
 
-Finds out why you have to hard-code as `:57777`: https://github.com/sdkim96/chzzk-go/blob/main/internal/login/login.go#L9-L17
+포트가 `57777`로 고정된 이유: https://github.com/sdkim96/chzzk-go/blob/main/internal/login/login.go#L9-L17
 
-If you have registered, your application will be recorded as:
+등록이 완료되면 아래와 같이 확인할 수 있습니다.
 
-![alt text](docs/image2.png)
+![alt text](image2.png)
 
-Well done! 
+### 로그인
 
-### How to Login
-
-You can use our distributed binary to easily login to Chzzk.
+배포된 바이너리를 사용하면 간편하게 로그인할 수 있습니다.
 
 ```bash
 go install github.com/sdkim96/chzzk-go/cmd/chzzk-login@latest
 chzzk-login
 ```
 
-Or download a prebuilt binary from [GitHub Releases](https://github.com/sdkim96/chzzk-go/releases).
+또는 [GitHub Releases](https://github.com/sdkim96/chzzk-go/releases)에서 빌드된 바이너리를 다운로드할 수 있습니다.
 
-The CLI will guide you through the OAuth flow and print your access token.
+CLI가 OAuth 플로우를 안내하고, 완료되면 액세스 토큰을 출력합니다.
 
-## Authentication
+## 인증
 
-There are two ways to authenticate:
+두 가지 인증 방식을 지원합니다.
 
 ### Client Credentials
 
-Use `WithClientAuth` for server-to-server API calls (e.g., session auth, token management).
+서버 간 API 호출(세션 인증, 토큰 관리 등)에 사용합니다.
 
 ```go
 c := chzzk.New(nil).WithClientAuth("your-client-id", "your-client-secret")
 ```
 
-### API Key (User Access Token)
+### API Key (사용자 액세스 토큰)
 
-Use `WithAPIKey` for user-scoped API calls (e.g., user info, chat subscription).
+사용자 범위 API 호출(사용자 정보 조회, 채팅 구독 등)에 사용합니다.
 
 ```go
 c := chzzk.New(nil).WithAPIKey("your-access-token")
 ```
 
-## Services
+## 서비스
 
 ### Token
 
 ```go
 c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
-// Issue a new token
+// 새 토큰 발급
 token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeAuthorizationCode,
@@ -105,7 +99,7 @@ token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
     State: state,
 })
 
-// Refresh a token
+// 토큰 갱신
 token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeRefreshToken,
@@ -115,7 +109,7 @@ token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
     RefreshToken: "your-refresh-token",
 })
 
-// Revoke a token
+// 토큰 폐기
 err := c.Token.RevokeToken(ctx, chzzk.RevokeTokenRequest{
     ClientID:      clientID,
     ClientSecret:  clientSecret,
@@ -133,22 +127,22 @@ user, err := c.User.Me(ctx)
 fmt.Println(user.ChannelID, user.ChannelName)
 ```
 
-### Session (Real-time Events)
+### Session (실시간 이벤트)
 
 ```go
 c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
-// Get a session URL
+// 세션 URL 획득
 sessionURL, err := c.Session.AuthClient(ctx)
 
-// Subscribe/unsubscribe to chat events
+// 채팅 이벤트 구독/구독 해제
 err := c.Session.SubscribeChat(ctx, sessionKey)
 err := c.Session.UnSubscribeChat(ctx, sessionKey)
 ```
 
 ### Socket.IO
 
-The `socketio` package provides a Socket.IO v2 client for receiving real-time events.
+`socketio` 패키지는 실시간 이벤트 수신을 위한 Socket.IO v2 클라이언트를 제공합니다.
 
 ```go
 import "github.com/sdkim96/chzzk-go/socketio"
@@ -167,20 +161,19 @@ conn := socketio.New(wsURL,
 err := conn.Dial(ctx)
 defer conn.Close(ctx, 1000, "done")
 
-err = conn.Loop(ctx) // blocks until context is cancelled or error
+err = conn.Loop(ctx) // 컨텍스트가 취소되거나 에러가 발생할 때까지 블로킹
 ```
 
-## Testing
+## 테스트
 
 ```bash
-# Unit tests
+# 유닛 테스트
 go test ./...
 
-# Integration tests (requires CHZZK_CLIENT_ID and CHZZK_CLIENT_SECRET)
+# 통합 테스트 (CHZZK_CLIENT_ID, CHZZK_CLIENT_SECRET 환경변수 필요)
 go test -tags=integration ./...
 ```
 
-## License
+## 라이선스
 
 MIT
-
