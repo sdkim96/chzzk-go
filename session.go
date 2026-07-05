@@ -14,11 +14,11 @@ type SessionService struct {
 
 const prefixSession = "/sessions"
 
-// AuthClient returns a URL for connecting to the Chzzk session service.
-// The user could use this URL to subscribe to various events from Chzzk,
-// such as:
-//   - Chat messages
-//   - Subscription events
+// AuthClient returns a URL for connecting to the Chzzk session service
+// via Authorization of client credentials.
+// You must use this API by [WithClientAuth] only.
+//
+// Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined
 func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
 	url, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
 	if err != nil {
@@ -27,12 +27,39 @@ func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
 	return s.auth(ctx, url)
 }
 
+// AuthUser returns a URL for connecting to the Chzzk session service
+// via Authorization of user credentials.
+// You must use this API by [WithAPIKey] only.
+//
+// Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-1
 func (s *SessionService) AuthUser(ctx context.Context) (string, error) {
 	url, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
 	return s.auth(ctx, url)
+}
+
+// SubscribeChat subscribes to chat events for the given session key.
+//
+// Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-5
+func (s *SessionService) SubscribeChat(ctx context.Context, sk string) error {
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "subscribe", "chat")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
+	return s.sub(ctx, urlStr, sk)
+}
+
+// UnSubscribeChat unsubscribes from chat events for the given session key.
+//
+// Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-6
+func (s *SessionService) UnSubscribeChat(ctx context.Context, sk string) error {
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "unsubscribe", "chat")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
+	return s.sub(ctx, urlStr, sk)
 }
 
 func (s *SessionService) auth(ctx context.Context, url string) (string, error) {
@@ -63,22 +90,6 @@ func (s *SessionService) auth(ctx context.Context, url string) (string, error) {
 	}
 
 	return authResp.Content.URL, nil
-}
-
-func (s *SessionService) SubscribeChat(ctx context.Context, sk string) error {
-	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "subscribe", "chat")
-	if err != nil {
-		return fmt.Errorf("chzzk: failed to build URL: %w", err)
-	}
-	return s.sub(ctx, urlStr, sk)
-}
-
-func (s *SessionService) UnSubscribeChat(ctx context.Context, sk string) error {
-	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "unsubscribe", "chat")
-	if err != nil {
-		return fmt.Errorf("chzzk: failed to build URL: %w", err)
-	}
-	return s.sub(ctx, urlStr, sk)
 }
 
 func (s *SessionService) sub(ctx context.Context, urlStr, sk string) error {

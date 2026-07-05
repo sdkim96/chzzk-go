@@ -20,6 +20,9 @@ type User struct {
 	ChannelName string `json:"channelName"`
 }
 
+// Me retreives the current user's information from the Chzzk API.
+//
+// Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/user
 func (s *UserService) Me(ctx context.Context) (*User, error) {
 	url, err := url.JoinPath(BaseURL, OpenV1, prefixUser, "me")
 	if err != nil {
@@ -40,10 +43,13 @@ func (s *UserService) Me(ctx context.Context) (*User, error) {
 		return nil, err
 	}
 
-	var user User
-	err = json.NewDecoder(resp.Body).Decode(&user)
+	var userResp struct {
+		OnSuccess
+		Content User `json:"content"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&userResp)
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return &userResp.Content, nil
 }

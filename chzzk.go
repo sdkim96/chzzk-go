@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	Version     = "0.0.5"
+	Version     = "0.1.0"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
@@ -37,7 +37,9 @@ type Chzzk struct {
 	Session *SessionService
 }
 
-func NewChzzk(c *http.Client) *Chzzk {
+// New creates a new Chzzk client with the provided http.Client.
+// If the provided http.Client is nil, a new http.Client will be created.
+func New(c *http.Client) *Chzzk {
 	if c == nil {
 
 		// we don't use the default http.Client. (http.DefaultClient)
@@ -168,7 +170,7 @@ func (chz *Chzzk) WithHooks(bef func(req *http.Request), aft func(resp *http.Res
 
 // initialize initializes the Chzzk client,
 // only copy-safe fields should be set in this function.
-// It is called by NewChzzk and copy.
+// It is called by New and copy.
 func (chz *Chzzk) initialize() {
 	chz.User = &UserService{chzzk: chz}
 	chz.Token = &TokenService{chzzk: chz}

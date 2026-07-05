@@ -5,22 +5,22 @@ import (
 	"testing"
 )
 
-func Test_NewChzzk(t *testing.T) {
+func Test_New(t *testing.T) {
 
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 	if chzzk.c == nil {
-		t.Errorf("NewChzzk(nil) returned a nil http.Client")
+		t.Errorf("New(nil) returned a nil http.Client")
 	}
 	if chzzk.User == nil {
-		t.Errorf("NewChzzk(nil) returned a nil UserService")
+		t.Errorf("New(nil) returned a nil UserService")
 	}
 
-	chzzk2 := NewChzzk(http.DefaultClient)
+	chzzk2 := New(http.DefaultClient)
 	if chzzk2.c == nil {
-		t.Errorf("NewChzzk(http.DefaultClient) returned a nil http.Client")
+		t.Errorf("New(http.DefaultClient) returned a nil http.Client")
 	}
 	if chzzk2.User == nil {
-		t.Errorf("NewChzzk(http.DefaultClient) returned a nil UserService")
+		t.Errorf("New(http.DefaultClient) returned a nil UserService")
 	}
 
 }
@@ -34,7 +34,7 @@ func Test_initialize(t *testing.T) {
 }
 
 func Test_copy(t *testing.T) {
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 	chzzk2 := chzzk.copy()
 	if chzzk2 == nil {
 		t.Errorf("copy() returned a nil Chzzk")
@@ -45,7 +45,7 @@ func Test_copy(t *testing.T) {
 }
 
 func Test_WithAPIKey(t *testing.T) {
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 	apiKey := "test-api-key"
 	chzzk2 := chzzk.WithAPIKey(apiKey)
 
@@ -68,7 +68,7 @@ func Test_WithAPIKey(t *testing.T) {
 }
 
 func Test_WithHooks(t *testing.T) {
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 	beforeHookCalled := false
 	afterHookCalled := false
 
@@ -102,7 +102,7 @@ func Test_WithHooks(t *testing.T) {
 }
 
 func Test_WithHooks_NilHooks(t *testing.T) {
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 
 	chzzk2 := chzzk.WithHooks(nil, nil)
 
@@ -122,7 +122,7 @@ func Test_WithHooks_NilHooks(t *testing.T) {
 }
 
 func Test_WithAPIKey_And_WithHooks(t *testing.T) {
-	chzzk := NewChzzk(nil)
+	chzzk := New(nil)
 	apiKey := "test-api-key"
 	beforeHookCalled := false
 	beforeHook := func(req *http.Request) {
