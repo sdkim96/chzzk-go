@@ -24,53 +24,54 @@ const (
 	EngineIOVersion = 3
 )
 
-type EnginePacketType int
-type SocketPacketType int
-
-const (
-	// This None value is a sentinel value for the zero value of EnginePacketType.
-	// It is not a valid EnginePacketType and should not be used in any other context.
-	EngineNone EnginePacketType = iota - 1
-
-	Open
-	Close
-
-	// from server to client
-	Ping
-
-	// from client to server
-	Pong
-	Message
-	Upgrade
-	Noop
-)
-
-const (
-	// This None value is a sentinel value for the zero value of SocketPacketType.
-	// It is not a valid SocketPacketType and should not be used in any other context.
-	SocketNone SocketPacketType = iota - 1
-
-	Connect
-	Disconnect
-
-	Event
-	Ack
-	Error
-
-	BinaryEvent
-	BinaryAck
-)
-
+// ConnOption is a function type that modifies the Conn struct.
 type ConnOption func(*Conn)
 
+// Conn represents a Socket.IO connection over WebSocket.
+// By the specification, a packet number 42 is a event packet,
+// which is the only packet type that carries application data.
+//
+// Following is the example of packet 42.
+//
+//	42["SYSTEM",{"type":"connected","data":{"sessionKey":"xyz789"}}]
+//
+// Since this packet is for application level, the optional handlers can be
+// registered to handle specific events.
+// For example, You can register a handler for the "CHAT" event like this:
+//
+//	conn := socketio.New(url)
+//	conn.WithHandler("SYSTEM", func(p []byte) error {
+//	    fmt.Println("Received SYSTEM event:", string(p))
+//
+//	.     var data struct {
+//		        Type string `json:"type"`
+//		        Data struct {
+//		            SessionKey string `json:"sessionKey"`
+//		        } `json:"data"`
+//		    }
+//		    if err := json.Unmarshal(p, &data); err != nil {
+//		        return fmt.Errorf("failed to unmarshal SYSTEM event: %w", err)
+//		    }
+//		    fmt.Println("Session Key:", data.Data.SessionKey)
+//		    return nil
+//		})
+//
+// >> Note: The event name is case-sensitive. "CHAT" and "chat" are different events.
 type Conn struct {
-	conn    *ws.Conn
-	c       *http.Client
-	url     string
+
+	// The base connection to the Websocket server.
+	conn *ws.Conn
+	c    *http.Client
+	url  string
+
+	// The event handler map, where the key is the event name and the value is the handler function.
 	handler map[string]func([]byte) error
 }
 
-func NewConn(url string, opts ...ConnOption) *Conn {
+// New creates a new Socket.IO connection with the given URL and optional connection options.
+// This does not establish the connection yet.
+// You need to call Dial() to establish the connection and handshake.
+func New(url string, opts ...ConnOption) *Conn {
 	conn := &Conn{
 		url:     url,
 		handler: make(map[string]func([]byte) error),
@@ -88,7 +89,7 @@ func WithHTTPClient(c *http.Client) ConnOption {
 	}
 }
 
-func WithOn(pattern string, handler func([]byte) error) ConnOption {
+func WithHandler(pattern string, handler func([]byte) error) ConnOption {
 	if pattern == "" {
 		panic("socketio: pattern must not be empty")
 	}
@@ -98,14 +99,9 @@ func WithOn(pattern string, handler func([]byte) error) ConnOption {
 }
 
 // Dial establishes a websocket connection and handshake in Socket.IO protocol.
-// It embeds a Websocket connection to Conn struct if both connection and handshake are successful.
+// It embeds a Websocket connection to Conn object if both connection and handshake are successful.
 func (c *Conn) Dial(ctx context.Context) error {
-
-	if c.c == nil {
-		c.c = http.DefaultClient
-	}
-	err := c.dial(ctx)
-	if err != nil {
+	if err := c.dial(ctx); err != nil {
 		return err
 	}
 	if err := c.handshake(ctx); err != nil {
@@ -116,14 +112,92 @@ func (c *Conn) Dial(ctx context.Context) error {
 }
 
 // Close closes the underlying websocket connection.
-func (c *Conn) Close(status ws.StatusCode, reason string) error {
-	// TODO: Add a Socket.IO disconnect packet before closing the connection.
-	return c.conn.Close(status, reason)
+// It sends a Close packet to the server before closing the connection.
+func (c *Conn) Close(ctx context.Context, status ws.StatusCode, reason string) error {
+	if !c.isDialed() {
+		return fmt.Errorf("socketio: not dialed. Call Dial() before Close()")
+	}
+	defer c.conn.Close(status, reason)
+	return c.close(ctx)
 }
 
 // Loop reads messages from the websocket connection and decodes them into Socket.IO packets.
 // It also handles ping/pong messages and invokes the registered event handlers for the decoded packets.
 func (c *Conn) Loop(ctx context.Context) error {
+	if !c.isDialed() {
+		return fmt.Errorf("socketio: not dialed. Call Dial() before Loop()")
+	}
+	return c.loop(ctx)
+}
+
+func (c *Conn) isDialed() bool {
+	return c.conn != nil
+}
+
+func (c *Conn) dial(ctx context.Context) error {
+	conn, _, err := ws.Dial(ctx, c.url, &ws.DialOptions{
+		HTTPClient: c.c,
+	})
+	if err != nil {
+		return err
+	}
+	c.conn = conn
+	return nil
+}
+
+func (c *Conn) handshake(ctx context.Context) error {
+	// Phase 1: Read Open (0) packet from Server
+	_, msg, err := c.conn.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("socketio: handshake read failed: %w", err)
+	}
+
+	p0, err := decode(msg)
+	if err != nil {
+		return fmt.Errorf("socketio: handshake decode failed: %w", err)
+	}
+
+	if !p0.is0() {
+		return fmt.Errorf("socketio: handshake expected EnginePacketType Open, got %v", p0.EnginePacketType)
+	}
+
+	// Phase 2: Send Message Connect (40) packet to Server
+	b0, err := encode(newPacket(Message, Connect, nil))
+	if err != nil {
+		return fmt.Errorf("socketio: handshake encode failed: %w", err)
+	}
+
+	err = c.conn.Write(ctx, ws.MessageText, b0)
+	if err != nil {
+		return fmt.Errorf("socketio: handshake write failed: %w", err)
+	}
+
+	// Phase 3: Read Message Connect (40) packet from Server
+	_, msg, err = c.conn.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("socketio: handshake read failed: %w", err)
+	}
+
+	p1, err := decode(msg)
+	if err != nil {
+		return fmt.Errorf("socketio: handshake decode failed: %w", err)
+	}
+
+	if !p1.is40() {
+		return fmt.Errorf("socketio: handshake expected EnginePacketType Message and SocketPacketType Connect, got %v and %v", p1.EnginePacketType, p1.SocketPacketType)
+	}
+	return nil
+}
+
+func (c *Conn) close(ctx context.Context) error {
+	b, err := encode(newPacket(Close, SocketNone, nil))
+	if err != nil {
+		return fmt.Errorf("socketio: encode failed: %w", err)
+	}
+	return c.conn.Write(ctx, ws.MessageText, b)
+}
+
+func (c *Conn) loop(ctx context.Context) error {
 	for {
 		_, msg, err := c.conn.Read(ctx)
 		if err != nil {
@@ -139,64 +213,25 @@ func (c *Conn) Loop(ctx context.Context) error {
 		}
 
 		if decoded.EnginePacketType == Ping {
-			c.conn.Write(ctx, ws.MessageText, []byte("3"))
+			b, err := encode(newPacket(Pong, SocketNone, nil))
+			if err != nil {
+				return fmt.Errorf("socketio: encode failed: %w", err)
+			}
+			err = c.conn.Write(ctx, ws.MessageText, b)
+			if err != nil {
+				return fmt.Errorf("socketio: pong failed: %w", err)
+			}
 			continue
 		}
 
-		pat, err := decoded.event()
+		ev, data, err := decoded.event()
 		if err != nil {
 			continue
 		}
-		if handler, ok := c.handler[pat]; ok {
-			if err := handler(decoded.Body); err != nil {
+		if handler, ok := c.handler[ev]; ok {
+			if err := handler(data); err != nil {
 				return fmt.Errorf("socketio: handler failed: %w", err)
 			}
 		}
-
 	}
-}
-
-func (c *Conn) dial(ctx context.Context) error {
-
-	conn, _, err := ws.Dial(ctx, c.url, &ws.DialOptions{
-		HTTPClient: c.c,
-	})
-	if err != nil {
-		return err
-	}
-
-	c.conn = conn
-	return nil
-}
-
-func (c *Conn) handshake(ctx context.Context) error {
-
-	_, msg, err := c.conn.Read(ctx)
-	if err != nil {
-		return fmt.Errorf("socketio: handshake read failed: %w", err)
-	}
-
-	decoded, err := decode(msg)
-	if err != nil {
-		return fmt.Errorf("socketio: handshake decode failed: %w", err)
-	}
-
-	if decoded.EnginePacketType != Open {
-		return fmt.Errorf("socketio: handshake expected EnginePacketType Open, got %v", decoded.EnginePacketType)
-	}
-	pac := newPacket(Message, Connect, nil)
-
-	b, err := encode(pac)
-	if err != nil {
-		return fmt.Errorf("socketio: handshake encode failed: %w", err)
-	}
-
-	err = c.conn.Write(ctx, ws.MessageText, b)
-	if err != nil {
-		return fmt.Errorf("socketio: handshake write failed: %w", err)
-	}
-
-	// TODO: Implement a Socket.IO handshake response check. The server should respond with a Connect packet.
-	return nil
-
 }
