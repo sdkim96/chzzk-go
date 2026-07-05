@@ -1,6 +1,9 @@
 # chzzk-go
 
-chzzk-go is a Go client library for accessing [Chzzk](https://chzzk.naver.com).
+chzzk-go is a Go client library for accessing [Chzzk](https://chzzk.naver.com). This library provides 
+
+
+
 
 In the future, chzzk-go will provide not only SDK, which is the canonical way to access, but also interactive CLI so that users can easily:
 - chat
