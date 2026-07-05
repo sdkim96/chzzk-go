@@ -17,15 +17,15 @@ import (
 
 func main() {
 	clientID := os.Getenv("CHZZK_CLIENT_ID")
-	clientSecret := os.Getenv("CHZZK_SECRET_KEY")
+	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
 	if clientID == "" || clientSecret == "" {
-		log.Fatal("CHZZK_CLIENT_ID and CHZZK_SECRET_KEY must be set")
+		log.Fatal("CHZZK_CLIENT_ID and CHZZK_CLIENT_SECRET must be set")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
-	c := chzzk.NewChzzk(nil).WithClientAuth(clientID, clientSecret)
+	c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
 	// Step 1: OAuth login to get access token
 	state := fmt.Sprintf("collect-%d", time.Now().Unix())
@@ -64,7 +64,7 @@ func main() {
 	log.Printf("Got access token (expires in %ds)", tokenResp.ExpiresIn)
 
 	// Step 3: Create user session with access token
-	cUser := chzzk.NewChzzk(nil).WithAPIKey(tokenResp.AccessToken)
+	cUser := chzzk.New(nil).WithAPIKey(tokenResp.AccessToken)
 	sessionURL, err := cUser.Session.AuthUser(ctx)
 	if err != nil {
 		log.Fatalf("AuthUser: %v", err)
