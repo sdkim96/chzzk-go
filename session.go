@@ -20,23 +20,23 @@ const prefixSession = "/sessions"
 //   - Chat messages
 //   - Subscription events
 func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
-	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
+	url, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
-	return s.auth(ctx, urlStr)
+	return s.auth(ctx, url)
 }
 
 func (s *SessionService) AuthUser(ctx context.Context) (string, error) {
-	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
+	url, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
-	return s.auth(ctx, urlStr)
+	return s.auth(ctx, url)
 }
 
-func (s *SessionService) auth(ctx context.Context, urlStr string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
+func (s *SessionService) auth(ctx context.Context, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -63,5 +63,42 @@ func (s *SessionService) auth(ctx context.Context, urlStr string) (string, error
 	}
 
 	return authResp.Content.URL, nil
+}
 
+func (s *SessionService) SubscribeChat(ctx context.Context, sk string) error {
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "subscribe", "chat")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
+	return s.sub(ctx, urlStr, sk)
+}
+
+func (s *SessionService) UnSubscribeChat(ctx context.Context, sk string) error {
+	urlStr, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "events", "unsubscribe", "chat")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
+	return s.sub(ctx, urlStr, sk)
+}
+
+func (s *SessionService) sub(ctx context.Context, urlStr, sk string) error {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return err
+	}
+	q := u.Query()
+	q.Set("sessionKey", sk)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := s.chzzk.c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return mightError(resp)
 }
