@@ -23,7 +23,7 @@ func Test_AuthClient(t *testing.T) {
 }
 
 func Test_AuthUser(t *testing.T) {
-	chzzk := NewChzzk(nil).WithAPIKey("your-api-key")
+	chzzk := NewChzzk(nil).WithAPIKey("_")
 
 	ctx := context.Background()
 	url, err := chzzk.Session.AuthUser(ctx)

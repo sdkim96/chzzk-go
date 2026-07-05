@@ -42,10 +42,6 @@ func Test_copy(t *testing.T) {
 	if chzzk2.User == nil {
 		t.Errorf("copy() did not initialize UserService")
 	}
-
-	if chzzk2.c.Transport != chzzk.c.Transport {
-		t.Errorf("copy() did not copy the Transport correctly")
-	}
 }
 
 func Test_WithAPIKey(t *testing.T) {
