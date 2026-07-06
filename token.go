@@ -52,7 +52,7 @@ type RevokeTokenRequest struct {
 }
 
 // NewToken requests a new access token using the provided authorization code and state.
-// You must use this API by [WithClientAuth] only.
+// You must use this API by [Chzzk.WithClientAuth] only.
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token
 func (s *TokenService) NewToken(ctx context.Context, r TokenNewRequest) (*TokenResponse, error) {
@@ -60,7 +60,7 @@ func (s *TokenService) NewToken(ctx context.Context, r TokenNewRequest) (*TokenR
 }
 
 // RefreshToken requests a new access token using the provided refresh token.
-// You must use this API by [WithClientAuth] only.
+// You must use this API by [Chzzk.WithClientAuth] only.
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token-1
 func (s *TokenService) RefreshToken(ctx context.Context, r TokenRefreshRequest) (*TokenResponse, error) {
@@ -68,7 +68,7 @@ func (s *TokenService) RefreshToken(ctx context.Context, r TokenRefreshRequest) 
 }
 
 // RevokeToken revokes the provided access or refresh token.
-// You must use this API by [WithClientAuth] only.
+// You must use this API by [Chzzk.WithClientAuth] only.
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token-2
 func (s *TokenService) RevokeToken(ctx context.Context, r RevokeTokenRequest) error {

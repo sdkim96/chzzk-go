@@ -27,6 +27,7 @@ func main() {
 
 func readCredentials() (clientID, clientSecret string) {
 	fmt.Println("=== chzzk-go login ===")
+	fmt.Println("You can find the guide here: https://github.com/sdkim96/chzzk-go/tree/main/cmd/chzzk-login/README.md")
 	fmt.Println()
 	fmt.Println("Before you start, make sure you have:")
 	fmt.Println("  1. Created an app at https://developers.chzzk.naver.com")

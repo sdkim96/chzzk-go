@@ -16,7 +16,7 @@ const prefixSession = "/sessions"
 
 // AuthClient returns a URL for connecting to the Chzzk session service
 // via Authorization of client credentials.
-// You must use this API by [WithClientAuth] only.
+// You must use this API by [Chzzk.WithClientAuth] only.
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined
 func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
@@ -29,7 +29,7 @@ func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
 
 // AuthUser returns a URL for connecting to the Chzzk session service
 // via Authorization of user credentials.
-// You must use this API by [WithAPIKey] only.
+// You must use this API by [Chzzk.WithAPIKey] only.
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-1
 func (s *SessionService) AuthUser(ctx context.Context) (string, error) {

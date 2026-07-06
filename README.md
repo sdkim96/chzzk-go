@@ -56,16 +56,7 @@ Well done!
 
 ### How to Login
 
-You can use our distributed binary to easily login to Chzzk.
-
-```bash
-go install github.com/sdkim96/chzzk-go/cmd/chzzk-login@latest
-chzzk-login
-```
-
-Or download a prebuilt binary from [GitHub Releases](https://github.com/sdkim96/chzzk-go/releases).
-
-The CLI will guide you through the OAuth flow and print your access token.
+You can find the guide [here](https://github.com/sdkim96/chzzk-go/tree/main/cmd/chzzk-login/README.md).
 
 ## Authentication
 
