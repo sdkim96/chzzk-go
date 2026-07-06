@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// Step 2: Exchange code for access token
-	tokenResp, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
+	tokenResp, err := c.Token.New(ctx, chzzk.TokenNewRequest{
 		TokenRequest: chzzk.TokenRequest{
 			GrantType:    chzzk.GrantTypeAuthorizationCode,
 			ClientID:     clientID,

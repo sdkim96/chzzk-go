@@ -98,7 +98,7 @@ func exchangeToken(ctx context.Context, clientID, clientSecret, code, state stri
 	fmt.Println("--- Step 2: Exchange Token ---")
 
 	c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
-	tokenResp, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
+	tokenResp, err := c.Token.New(ctx, chzzk.TokenNewRequest{
 		TokenRequest: chzzk.TokenRequest{
 			GrantType:    chzzk.GrantTypeAuthorizationCode,
 			ClientID:     clientID,
