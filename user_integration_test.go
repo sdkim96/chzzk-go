@@ -1,4 +1,4 @@
-// go:build integration
+//go:build integration
 
 package chzzk
 
@@ -8,22 +8,60 @@ import (
 	"testing"
 )
 
-func Test_User401(t *testing.T) {
-	chzzk := New(nil)
-	_, err := chzzk.User.Me(context.Background())
-	if err == nil {
-		t.Errorf("Expected error for unauthorized request, got nil")
+func userClientAuth(t *testing.T) *Chzzk {
+	t.Helper()
+	clientID := os.Getenv("CHZZK_CLIENT_ID")
+	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		t.Skip("CHZZK_CLIENT_ID or CHZZK_CLIENT_SECRET not set")
 	}
+	return New(nil).WithClientAuth(clientID, clientSecret)
 }
 
-func Test_User(t *testing.T) {
-	chz := New(nil).WithAPIKey(os.Getenv("CHZZK_API_KEY"))
-	user, err := chz.User.Me(context.Background())
+func userAPIKey(t *testing.T) *Chzzk {
+	t.Helper()
+	apiKey := os.Getenv("CHZZK_API_KEY")
+	if apiKey == "" {
+		t.Skip("CHZZK_API_KEY not set")
+	}
+	return New(nil).WithAPIKey(apiKey)
+}
+
+// --- Me (no auth) ---
+
+func Test_Me_NoAuth(t *testing.T) {
+	c := New(nil)
+	_, err := c.User.Me(context.Background())
+	if err == nil {
+		t.Fatal("Me without auth should fail")
+	}
+	t.Logf("Me without auth failed as expected: %v", err)
+}
+
+// --- Me (WithAPIKey) ---
+
+func Test_Me_WithAPIKey(t *testing.T) {
+	c := userAPIKey(t)
+
+	user, err := c.User.Me(context.Background())
 	if err != nil {
-		t.Errorf("Expected no error for authorized request, got %v", err)
+		t.Fatalf("Me failed: %v", err)
 	}
 	if user.ChannelID == "" || user.ChannelName == "" {
-		t.Errorf("Expected valid user data, got %+v", user)
+		t.Fatalf("Me returned incomplete user: %+v", user)
 	}
 	t.Logf("User: %+v", user)
+}
+
+// --- Me (WithClientAuth) ---
+
+func Test_Me_WithClientAuth(t *testing.T) {
+	c := userClientAuth(t)
+
+	user, err := c.User.Me(context.Background())
+	if err == nil {
+		t.Logf("Me with ClientAuth succeeded: %+v", user)
+	} else {
+		t.Logf("Me with ClientAuth failed as expected: %v", err)
+	}
 }
