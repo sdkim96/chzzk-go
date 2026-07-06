@@ -1,7 +1,6 @@
 package chzzk
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 )
@@ -13,19 +12,12 @@ const (
 	AuthV1      = "/auth/v1"
 	ContentType = "application/json"
 	UserAgent   = "chzzk-go/" + Version
-)
 
-var (
-	ErrParam        = errors.New("400: parameter error")
-	ErrUnauthorized = errors.New("401: unauthorized error")
-
-	//TODO: Not sure the difference between ErrUnauthorized and ErrInvalidClient / ErrInvalidToken.
-	ErrInvalidClient = errors.New("401: invalid client error")
-	ErrInvalidToken  = errors.New("401: invalid token error")
-	ErrForbidden     = errors.New("403: forbidden error")
-	ErrNotFound      = errors.New("404: not found error")
-	ErrExceededQuota = errors.New("429: exceeded quota error")
-	ErrInternal      = errors.New("500: internal error")
+	// The service prefixes
+	prefixToken   = "/tokens"
+	prefixUser    = "/users"
+	prefixSession = "/sessions"
+	prefixChannel = "/channels"
 )
 
 type Chzzk struct {
@@ -35,6 +27,7 @@ type Chzzk struct {
 	Token   *TokenService
 	User    *UserService
 	Session *SessionService
+	Channel *ChannelService
 }
 
 // New creates a new Chzzk client with the provided http.Client.
@@ -75,12 +68,12 @@ func New(c *http.Client) *Chzzk {
 	return chz
 }
 
-// OnSuccess is a struct that Chzzk always returns if the request is successful,
-// with any type on Content field.
+// Response is a struct that Chzzk always returns in the response body,
+// with the actual response type in the Content field.
 //
-// Each Service should embed OnSuccess to its own response struct,
+// Each Service should embed Response to its own response struct,
 // including the Content field with the actual response type.
-type OnSuccess struct {
+type Response struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	// Content any
@@ -175,6 +168,7 @@ func (chz *Chzzk) initialize() {
 	chz.User = &UserService{chzzk: chz}
 	chz.Token = &TokenService{chzzk: chz}
 	chz.Session = &SessionService{chzzk: chz}
+	chz.Channel = &ChannelService{chzzk: chz}
 }
 
 // copy copies the Chzzk client, returning a new instance with the same configuration.
@@ -197,25 +191,25 @@ func (chz *Chzzk) copy() *Chzzk {
 	return chz2
 }
 
-func mightError(resp *http.Response) error {
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+func mightError(resp Response) error {
+	if resp.Code >= 200 && resp.Code < 300 {
 		return nil
 	}
-	switch resp.StatusCode {
+	switch resp.Code {
 	case 400:
-		return ErrParam
+		return fmt.Errorf("400: parameter error, %s", resp.Message)
 	case 401:
-		return ErrUnauthorized
+		return fmt.Errorf("401: unauthorized error, %s", resp.Message)
 	case 403:
-		return ErrForbidden
+		return fmt.Errorf("403: forbidden error, %s", resp.Message)
 	case 404:
-		return ErrNotFound
+		return fmt.Errorf("404: not found error, %s", resp.Message)
 	case 429:
-		return ErrExceededQuota
+		return fmt.Errorf("429: exceeded quota error, %s", resp.Message)
 	case 500:
-		return ErrInternal
+		return fmt.Errorf("500: internal error, %s", resp.Message)
 	default:
-		return fmt.Errorf("%d: %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+		return fmt.Errorf("%d: %s", resp.Code, resp.Message)
 	}
 }
 

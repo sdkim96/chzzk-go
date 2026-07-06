@@ -2,10 +2,10 @@ package chzzk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
+
+	"github.com/sdkim96/chzzk-go/internal/roundtrip"
 )
 
 // UserService handles APIs prefixed with /users
@@ -13,43 +13,33 @@ type UserService struct {
 	chzzk *Chzzk
 }
 
-const prefixUser = "/users"
-
 type User struct {
 	ChannelID   string `json:"channelId"`
 	ChannelName string `json:"channelName"`
 }
 
-// Me retreives the current user's information from the Chzzk API.
+// Me retrieves the current user's information from the Chzzk API.
+//   - pattern: [Get]
+//   - credential: [Chzzk.WithAPIKey]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/user
+//
+// [Get]: https://google.aip.dev/131
 func (s *UserService) Me(ctx context.Context) (*User, error) {
-	url, err := url.JoinPath(BaseURL, OpenV1, prefixUser, "me")
+	u, err := url.JoinPath(BaseURL, OpenV1, prefixUser, "me")
 	if err != nil {
 		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := s.chzzk.c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	err = mightError(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	var userResp struct {
-		OnSuccess
+	type UserResp struct {
+		Response
 		Content User `json:"content"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&userResp)
+	resp, err := roundtrip.Get[UserResp](ctx, s.chzzk.c, u)
 	if err != nil {
 		return nil, err
 	}
-	return &userResp.Content, nil
+	if err := mightError(resp.Response); err != nil {
+		return nil, err
+	}
+	return &resp.Content, nil
 }

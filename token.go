@@ -1,12 +1,12 @@
 package chzzk
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
+
+	"github.com/sdkim96/chzzk-go/internal/roundtrip"
 )
 
 type TokenService struct {
@@ -16,7 +16,6 @@ type TokenService struct {
 type GrantType string
 
 const (
-	prefixToken                          = "/token"
 	GrantTypeAuthorizationCode GrantType = "authorization_code"
 	GrantTypeRefreshToken      GrantType = "refresh_token"
 )
@@ -51,47 +50,46 @@ type RevokeTokenRequest struct {
 	TokenTypeHint string `json:"tokenTypeHint"`
 }
 
-// NewToken requests a new access token using the provided authorization code and state.
-// You must use this API by [Chzzk.WithClientAuth] only.
+// New requests a new access token using the provided authorization code and state.
+//   - pattern: [Create]
+//   - credential: [Chzzk.WithClientAuth]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token
-func (s *TokenService) NewToken(ctx context.Context, r TokenNewRequest) (*TokenResponse, error) {
+//
+// [Create]: https://google.aip.dev/133
+func (s *TokenService) New(ctx context.Context, r TokenNewRequest) (*TokenResponse, error) {
 	return s.token(ctx, r)
 }
 
-// RefreshToken requests a new access token using the provided refresh token.
-// You must use this API by [Chzzk.WithClientAuth] only.
+// Refresh requests a new access token using the provided refresh token.
+//   - pattern: [Create]
+//   - credential: [Chzzk.WithClientAuth]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token-1
-func (s *TokenService) RefreshToken(ctx context.Context, r TokenRefreshRequest) (*TokenResponse, error) {
+//
+// [Create]: https://google.aip.dev/133
+func (s *TokenService) Refresh(ctx context.Context, r TokenRefreshRequest) (*TokenResponse, error) {
 	return s.token(ctx, r)
 }
 
-// RevokeToken revokes the provided access or refresh token.
-// You must use this API by [Chzzk.WithClientAuth] only.
+// Revoke revokes the provided access or refresh token.
+//   - pattern: [Delete]
+//   - credential: [Chzzk.WithClientAuth]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/authorization#access-token-2
-func (s *TokenService) RevokeToken(ctx context.Context, r RevokeTokenRequest) error {
-	url, err := url.JoinPath(BaseURL, AuthV1, prefixToken, "revoke")
+//
+// [Delete]: https://google.aip.dev/135
+func (s *TokenService) Revoke(ctx context.Context, r RevokeTokenRequest) error {
+	u, err := url.JoinPath(BaseURL, AuthV1, prefixToken, "revoke")
 	if err != nil {
 		return fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
 	jsonData, err := json.Marshal(r)
+	resp, err := roundtrip.Post[Response](ctx, s.chzzk.c, u, jsonData)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonData))
-	if err != nil {
-		return err
-	}
-	resp, err := s.chzzk.c.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	err = mightError(resp)
-	if err != nil {
+	if err := mightError(*resp); err != nil {
 		return err
 	}
 
@@ -99,7 +97,7 @@ func (s *TokenService) RevokeToken(ctx context.Context, r RevokeTokenRequest) er
 }
 
 func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error) {
-	url, err := url.JoinPath(BaseURL, AuthV1, prefixToken)
+	u, err := url.JoinPath(BaseURL, AuthV1, prefixToken)
 	if err != nil {
 		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
@@ -107,29 +105,16 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal token request: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	resp, err := s.chzzk.c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	err = mightError(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	var tokenResp struct {
-		OnSuccess
+	type TokenResp struct {
+		Response
 		Content TokenResponse `json:"content"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
+	resp, err := roundtrip.Post[TokenResp](ctx, s.chzzk.c, u, jsonData)
 	if err != nil {
 		return nil, err
 	}
-
-	return &tokenResp.Content, nil
+	if err := mightError(resp.Response); err != nil {
+		return nil, err
+	}
+	return &resp.Content, nil
 }
