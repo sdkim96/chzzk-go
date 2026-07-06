@@ -98,7 +98,7 @@ func Test_Batch_WithAPIKey(t *testing.T) {
 func Test_Managers_WithAPIKey(t *testing.T) {
 	c := channelAPIKey(t)
 
-	managers, err := c.Channel.Managers()
+	managers, err := c.Channel.Managers(context.Background())
 	if err != nil {
 		t.Fatalf("Managers failed: %v", err)
 	}
@@ -140,7 +140,8 @@ func Test_Followers_WithAPIKey_Pagination(t *testing.T) {
 func Test_Subscribers_WithAPIKey_Recent(t *testing.T) {
 	c := channelAPIKey(t)
 
-	subscribers, nextPage, err := c.Channel.Subscribers(context.Background(), 0, 10, Recent)
+	sort := Recent
+	subscribers, nextPage, err := c.Channel.Subscribers(context.Background(), nil, nil, &sort)
 	if err != nil {
 		t.Fatalf("Subscribers failed: %v", err)
 	}
@@ -150,11 +151,22 @@ func Test_Subscribers_WithAPIKey_Recent(t *testing.T) {
 func Test_Subscribers_WithAPIKey_Longer(t *testing.T) {
 	c := channelAPIKey(t)
 
-	subscribers, nextPage, err := c.Channel.Subscribers(context.Background(), 0, 10, Longer)
+	sort := Longer
+	subscribers, nextPage, err := c.Channel.Subscribers(context.Background(), nil, nil, &sort)
 	if err != nil {
 		t.Fatalf("Subscribers failed: %v", err)
 	}
 	t.Logf("Subscribers count: %d, nextPage: %d", len(subscribers), nextPage)
+}
+
+func Test_Subscribers_WithAPIKey_Nil(t *testing.T) {
+	c := channelAPIKey(t)
+
+	subscribers, nextPage, err := c.Channel.Subscribers(context.Background(), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("Subscribers failed: %v", err)
+	}
+	t.Logf("Subscribers (all nil) count: %d, nextPage: %d", len(subscribers), nextPage)
 }
 
 // --- Managers (WithClientAuth) should fail ---
@@ -162,7 +174,7 @@ func Test_Subscribers_WithAPIKey_Longer(t *testing.T) {
 func Test_Managers_WithClientAuth(t *testing.T) {
 	c := channelClientAuth(t)
 
-	_, err := c.Channel.Managers()
+	_, err := c.Channel.Managers(context.Background())
 	if err == nil {
 		t.Log("Managers with ClientAuth succeeded (unexpected — this API typically requires APIKey)")
 	} else {
@@ -188,7 +200,7 @@ func Test_Followers_WithClientAuth(t *testing.T) {
 func Test_Subscribers_WithClientAuth(t *testing.T) {
 	c := channelClientAuth(t)
 
-	_, _, err := c.Channel.Subscribers(context.Background(), 0, 10, Recent)
+	_, _, err := c.Channel.Subscribers(context.Background(), nil, nil, nil)
 	if err == nil {
 		t.Log("Subscribers with ClientAuth succeeded (unexpected — this API typically requires APIKey)")
 	} else {

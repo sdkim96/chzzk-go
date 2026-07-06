@@ -101,7 +101,7 @@ func (s *ChannelService) Batch(ctx context.Context, ids ...string) ([]Channel, e
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/channel#undefined-1
 //
 // [List]: https://google.aip.dev/132
-func (s *ChannelService) Managers() ([]Manager, error) {
+func (s *ChannelService) Managers(ctx context.Context) ([]Manager, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "streaming-roles")
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (s *ChannelService) Managers() ([]Manager, error) {
 			Data []Manager `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := roundtrip.Get[ManagerResp](context.Background(), s.chzzk.c, u)
+	resp, err := roundtrip.Get[ManagerResp](ctx, s.chzzk.c, u)
 	if err != nil {
 		return nil, err
 	}
@@ -186,11 +186,21 @@ func (s *ChannelService) Followers(ctx context.Context, page, size *int) ([]Foll
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/channel#undefined-3
 //
 // [List]: https://google.aip.dev/132
-func (s *ChannelService) Subscribers(ctx context.Context, page, size int, sort SubscriptionSort) ([]Subscriber, int, error) {
+func (s *ChannelService) Subscribers(ctx context.Context, page, size *int, sort *SubscriptionSort) ([]Subscriber, int, error) {
 	var (
-		defaultPage = page
-		defaultSize = size
+		defaultPage = 0
+		defaultSize = 30
+		defaultSort = Recent
 	)
+	if page != nil {
+		defaultPage = *page
+	}
+	if size != nil {
+		defaultSize = *size
+	}
+	if sort != nil {
+		defaultSort = *sort
+	}
 	nextPage := defaultPage + 1
 
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "subscribers")
@@ -204,7 +214,7 @@ func (s *ChannelService) Subscribers(ctx context.Context, page, size int, sort S
 	q := URL.Query()
 	q.Set("page", strconv.Itoa(defaultPage))
 	q.Set("size", strconv.Itoa(defaultSize))
-	q.Set("sort", string(sort))
+	q.Set("sort", string(defaultSort))
 	URL.RawQuery = q.Encode()
 
 	type SubscriberResp struct {
