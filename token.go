@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/roundtrip"
+	"github.com/sdkim96/chzzk-go/internal/rest"
 )
 
 type TokenService struct {
@@ -80,20 +80,7 @@ func (s *TokenService) Refresh(ctx context.Context, r TokenRefreshRequest) (*Tok
 //
 // [Delete]: https://google.aip.dev/135
 func (s *TokenService) Revoke(ctx context.Context, r RevokeTokenRequest) error {
-	u, err := url.JoinPath(BaseURL, AuthV1, prefixToken, "revoke")
-	if err != nil {
-		return fmt.Errorf("chzzk: failed to build URL: %w", err)
-	}
-	jsonData, err := json.Marshal(r)
-	resp, err := roundtrip.Post[Response](ctx, s.chzzk.c, u, jsonData)
-	if err != nil {
-		return err
-	}
-	if err := mightError(*resp); err != nil {
-		return err
-	}
-
-	return nil
+	return s.revoke(ctx, r)
 }
 
 func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error) {
@@ -109,7 +96,7 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 		Response
 		Content TokenResponse `json:"content"`
 	}
-	resp, err := roundtrip.Post[TokenResp](ctx, s.chzzk.c, u, jsonData)
+	resp, err := rest.Post[TokenResp](ctx, s.chzzk.c, u, jsonData)
 	if err != nil {
 		return nil, err
 	}
@@ -117,4 +104,21 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 		return nil, err
 	}
 	return &resp.Content, nil
+}
+
+func (s *TokenService) revoke(ctx context.Context, r RevokeTokenRequest) error {
+	u, err := url.JoinPath(BaseURL, AuthV1, prefixToken, "revoke")
+	if err != nil {
+		return fmt.Errorf("chzzk: failed to build URL: %w", err)
+	}
+	jsonData, err := json.Marshal(r)
+	resp, err := rest.Post[Response](ctx, s.chzzk.c, u, jsonData)
+	if err != nil {
+		return err
+	}
+	if err := mightError(*resp); err != nil {
+		return err
+	}
+
+	return nil
 }

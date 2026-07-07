@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/roundtrip"
+	"github.com/sdkim96/chzzk-go/internal/rest"
 )
 
 // UserService handles APIs prefixed with /users
@@ -26,6 +26,10 @@ type User struct {
 //
 // [Get]: https://google.aip.dev/131
 func (s *UserService) Me(ctx context.Context) (*User, error) {
+	return s.me(ctx)
+}
+
+func (s *UserService) me(ctx context.Context) (*User, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixUser, "me")
 	if err != nil {
 		return nil, fmt.Errorf("chzzk: failed to build URL: %w", err)
@@ -34,7 +38,7 @@ func (s *UserService) Me(ctx context.Context) (*User, error) {
 		Response
 		Content User `json:"content"`
 	}
-	resp, err := roundtrip.Get[UserResp](ctx, s.chzzk.c, u)
+	resp, err := rest.Get[UserResp](ctx, s.chzzk.c, u)
 	if err != nil {
 		return nil, err
 	}

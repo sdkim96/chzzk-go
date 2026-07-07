@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/roundtrip"
+	"github.com/sdkim96/chzzk-go/internal/rest"
 )
 
 type SessionService struct {
@@ -79,7 +79,7 @@ func (s *SessionService) auth(ctx context.Context, u string) (string, error) {
 			URL string `json:"url"`
 		} `json:"content"`
 	}
-	authResp, err := roundtrip.Get[AuthResp](ctx, s.chzzk.c, u)
+	authResp, err := rest.Get[AuthResp](ctx, s.chzzk.c, u)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +98,7 @@ func (s *SessionService) sub(ctx context.Context, u, sk string) error {
 	q.Set("sessionKey", sk)
 	URL.RawQuery = q.Encode()
 
-	_, err = roundtrip.Post[Response](ctx, s.chzzk.c, URL.String(), nil)
+	_, err = rest.Post[Response](ctx, s.chzzk.c, URL.String(), nil)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version     = "0.2.1"
+	Version     = "0.3.0"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
@@ -14,20 +14,24 @@ const (
 	UserAgent   = "chzzk-go/" + Version
 
 	// The service prefixes
-	prefixToken   = "/tokens"
-	prefixUser    = "/users"
-	prefixSession = "/sessions"
-	prefixChannel = "/channels"
+	prefixToken    = "/tokens"
+	prefixUser     = "/users"
+	prefixSession  = "/sessions"
+	prefixChannel  = "/channels"
+	prefixCategory = "/categories"
+	prefixLive     = "/lives"
 )
 
 type Chzzk struct {
 	c *http.Client
 
 	// The services
-	Token   *TokenService
-	User    *UserService
-	Session *SessionService
-	Channel *ChannelService
+	Token    *TokenService
+	User     *UserService
+	Session  *SessionService
+	Channel  *ChannelService
+	Category *CategoryService
+	Live     *LiveService
 }
 
 // New creates a new Chzzk client with the provided http.Client.
@@ -60,6 +64,7 @@ func New(c *http.Client) *Chzzk {
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 			req2.Header.Set("User-Agent", UserAgent)
+			req2.Header.Set("Content-Type", ContentType)
 			return originalTransport.RoundTrip(req2)
 		},
 	)
@@ -95,7 +100,6 @@ func (chz *Chzzk) WithClientAuth(ID, secret string) *Chzzk {
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 
-			req2.Header.Set("Content-Type", ContentType)
 			req2.Header.Set("Client-Id", ID)
 			req2.Header.Set("Client-Secret", secret)
 
@@ -169,6 +173,8 @@ func (chz *Chzzk) initialize() {
 	chz.Token = &TokenService{chzzk: chz}
 	chz.Session = &SessionService{chzzk: chz}
 	chz.Channel = &ChannelService{chzzk: chz}
+	chz.Category = &CategoryService{chzzk: chz}
+	chz.Live = &LiveService{chzzk: chz}
 }
 
 // copy copies the Chzzk client, returning a new instance with the same configuration.
