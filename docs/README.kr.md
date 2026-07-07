@@ -89,7 +89,7 @@ c := chzzk.New(nil).WithAPIKey("your-access-token")
 c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
 // 새 토큰 발급
-token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
+token, err := c.Token.New(ctx, chzzk.TokenNewRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeAuthorizationCode,
         ClientID:     clientID,
@@ -100,7 +100,7 @@ token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
 })
 
 // 토큰 갱신
-token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
+token, err := c.Token.Refresh(ctx, chzzk.TokenRefreshRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeRefreshToken,
         ClientID:     clientID,
@@ -110,7 +110,7 @@ token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
 })
 
 // 토큰 폐기
-err := c.Token.RevokeToken(ctx, chzzk.RevokeTokenRequest{
+err := c.Token.Revoke(ctx, chzzk.RevokeTokenRequest{
     ClientID:      clientID,
     ClientSecret:  clientSecret,
     Token:         "token-to-revoke",
@@ -125,6 +125,48 @@ c := chzzk.New(nil).WithAPIKey("your-access-token")
 
 user, err := c.User.Me(ctx)
 fmt.Println(user.ChannelID, user.ChannelName)
+```
+
+### Channel
+
+```go
+// 채널 정보 조회 (WithClientAuth)
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+channels, err := c.Channel.Get(ctx, "channelId1", "channelId2")
+
+// 매니저, 팔로워, 구독자 (WithAPIKey)
+c := chzzk.New(nil).WithAPIKey("your-access-token")
+
+managers, err := c.Channel.Managers(ctx)
+followers, nextPage, err := c.Channel.Followers(ctx, nil, nil)
+subscribers, nextPage, err := c.Channel.Subscribers(ctx, nil, nil, nil)
+```
+
+### Live
+
+```go
+// 라이브 목록 조회 (WithClientAuth)
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+lives, next, err := c.Live.Get(ctx, nil, nil)
+
+// 스트림키, 방송 설정 (WithAPIKey)
+c := chzzk.New(nil).WithAPIKey("your-access-token")
+key, err := c.Live.Key(ctx)
+setting, err := c.Live.Setting(ctx)
+
+// 방송 설정 변경
+title := "내 방송"
+err := c.Live.PatchSetting(ctx, &chzzk.PatchLiveSettingRequest{
+    Title:    &title,
+    Category: &chzzk.Category{Type: "GAME", ID: "League_of_Legends"},
+})
+```
+
+### Category
+
+```go
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+categories, err := c.Category.Search(ctx, "리그", nil)
 ```
 
 ### Session (실시간 이벤트)

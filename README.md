@@ -1,6 +1,6 @@
 # chzzk-go
 
-chzzk-go is a Go client library for accessing [Chzzk](https://chzzk.naver.com). This library provides APIs via official ways only.  
+chzzk-go is a Go client library for accessing [Chzzk](https://chzzk.naver.com). This library provides official ways for accessing to Chzzk. Unofficial APIs will be provided in the near future.
 
 Korean Documentation is available:
 - [한국어 문서](docs/README.kr.md)
@@ -86,7 +86,7 @@ c := chzzk.New(nil).WithAPIKey("your-access-token")
 c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
 // Issue a new token
-token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
+token, err := c.Token.New(ctx, chzzk.TokenNewRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeAuthorizationCode,
         ClientID:     clientID,
@@ -97,7 +97,7 @@ token, err := c.Token.NewToken(ctx, chzzk.TokenNewRequest{
 })
 
 // Refresh a token
-token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
+token, err := c.Token.Refresh(ctx, chzzk.TokenRefreshRequest{
     TokenRequest: chzzk.TokenRequest{
         GrantType:    chzzk.GrantTypeRefreshToken,
         ClientID:     clientID,
@@ -107,7 +107,7 @@ token, err := c.Token.RefreshToken(ctx, chzzk.TokenRefreshRequest{
 })
 
 // Revoke a token
-err := c.Token.RevokeToken(ctx, chzzk.RevokeTokenRequest{
+err := c.Token.Revoke(ctx, chzzk.RevokeTokenRequest{
     ClientID:      clientID,
     ClientSecret:  clientSecret,
     Token:         "token-to-revoke",
@@ -122,6 +122,48 @@ c := chzzk.New(nil).WithAPIKey("your-access-token")
 
 user, err := c.User.Me(ctx)
 fmt.Println(user.ChannelID, user.ChannelName)
+```
+
+### Channel
+
+```go
+// Get channel info (WithClientAuth)
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+channels, err := c.Channel.Get(ctx, "channelId1", "channelId2")
+
+// Managers, Followers, Subscribers (WithAPIKey)
+c := chzzk.New(nil).WithAPIKey("your-access-token")
+
+managers, err := c.Channel.Managers(ctx)
+followers, nextPage, err := c.Channel.Followers(ctx, nil, nil)
+subscribers, nextPage, err := c.Channel.Subscribers(ctx, nil, nil, nil)
+```
+
+### Live
+
+```go
+// List live streams (WithClientAuth)
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+lives, next, err := c.Live.Get(ctx, nil, nil)
+
+// Stream key, settings (WithAPIKey)
+c := chzzk.New(nil).WithAPIKey("your-access-token")
+key, err := c.Live.Key(ctx)
+setting, err := c.Live.Setting(ctx)
+
+// Update settings
+title := "My Stream"
+err := c.Live.PatchSetting(ctx, &chzzk.PatchLiveSettingRequest{
+    Title:    &title,
+    Category: &chzzk.Category{Type: "GAME", ID: "League_of_Legends"},
+})
+```
+
+### Category
+
+```go
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
+categories, err := c.Category.Search(ctx, "리그", nil)
 ```
 
 ### Session (Real-time Events)
