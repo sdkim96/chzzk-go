@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/sdkim96/chzzk-go/internal/roundtrip"
+	"github.com/sdkim96/chzzk-go/internal/rest"
 )
 
 type ChannelService struct {
@@ -49,48 +49,18 @@ type Subscriber struct {
 	CreatedDate string `json:"createdDate"`
 }
 
-// Batch retrieves information for multiple channels by their IDs.
+// Get retrieves information for multiple channels by their IDs.
 //   - pattern: [BatchGet]
 //   - credential: [Chzzk.WithClientAuth]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/channel#undefined
 //
 // [BatchGet]: https://google.aip.dev/231
-func (s *ChannelService) Batch(ctx context.Context, ids ...string) ([]Channel, error) {
+func (s *ChannelService) Get(ctx context.Context, ids ...string) ([]Channel, error) {
 	if len(ids) > 20 {
 		return nil, errors.New("chzzk: cannot request more than 20 channel IDs in a single batch")
 	}
-	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel)
-	if err != nil {
-		return nil, err
-	}
-	URL, err := url.Parse(u)
-	if err != nil {
-		return nil, err
-	}
-	q := URL.Query()
-	for _, id := range ids {
-		q.Add("channelIds", id)
-	}
-	URL.RawQuery = q.Encode()
-	type ChannelResp struct {
-		Response
-		Content struct {
-			Data []Channel `json:"data"`
-		} `json:"content"`
-	}
-	resp, err := roundtrip.Get[ChannelResp](ctx, s.chzzk.c, URL.String())
-	if err != nil {
-		return nil, err
-	}
-	if err := mightError(resp.Response); err != nil {
-		return nil, err
-	}
-	var channels []Channel
-	if resp != nil {
-		channels = resp.Content.Data
-	}
-	return channels, nil
+	return s.get(ctx, ids...)
 }
 
 // Managers retrieves the list of managers for a channel.
@@ -102,28 +72,7 @@ func (s *ChannelService) Batch(ctx context.Context, ids ...string) ([]Channel, e
 //
 // [List]: https://google.aip.dev/132
 func (s *ChannelService) Managers(ctx context.Context) ([]Manager, error) {
-	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "streaming-roles")
-	if err != nil {
-		return nil, err
-	}
-	type ManagerResp struct {
-		Response
-		Content struct {
-			Data []Manager `json:"data"`
-		} `json:"content"`
-	}
-	resp, err := roundtrip.Get[ManagerResp](ctx, s.chzzk.c, u)
-	if err != nil {
-		return nil, err
-	}
-	if err := mightError(resp.Response); err != nil {
-		return nil, err
-	}
-	var managers []Manager
-	if resp != nil {
-		managers = resp.Content.Data
-	}
-	return managers, nil
+	return s.managers(ctx)
 }
 
 // Followers retrieves the list of followers for a channel with pagination support.
@@ -144,39 +93,7 @@ func (s *ChannelService) Followers(ctx context.Context, page, size *int) ([]Foll
 	if size != nil {
 		defaultSize = *size
 	}
-	nextPage := defaultPage + 1
-
-	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "followers")
-	if err != nil {
-		return nil, 0, err
-	}
-	URL, err := url.Parse(u)
-	if err != nil {
-		return nil, 0, err
-	}
-	q := URL.Query()
-	q.Set("page", strconv.Itoa(defaultPage))
-	q.Set("size", strconv.Itoa(defaultSize))
-	URL.RawQuery = q.Encode()
-
-	type FollowerResp struct {
-		Response
-		Content struct {
-			Data []Follower `json:"data"`
-		} `json:"content"`
-	}
-	resp, err := roundtrip.Get[FollowerResp](ctx, s.chzzk.c, URL.String())
-	if err != nil {
-		return nil, 0, err
-	}
-	if err := mightError(resp.Response); err != nil {
-		return nil, 0, err
-	}
-	var followers []Follower
-	if resp != nil {
-		followers = resp.Content.Data
-	}
-	return followers, nextPage, nil
+	return s.followers(ctx, defaultPage, defaultSize)
 }
 
 // Subscribers retrieves the list of subscribers for a channel with pagination support.
@@ -201,8 +118,103 @@ func (s *ChannelService) Subscribers(ctx context.Context, page, size *int, sort 
 	if sort != nil {
 		defaultSort = *sort
 	}
-	nextPage := defaultPage + 1
+	return s.subscribers(ctx, defaultPage, defaultSize, defaultSort)
+}
 
+func (s *ChannelService) get(ctx context.Context, ids ...string) ([]Channel, error) {
+	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel)
+	if err != nil {
+		return nil, err
+	}
+	URL, err := url.Parse(u)
+	if err != nil {
+		return nil, err
+	}
+	q := URL.Query()
+	for _, id := range ids {
+		q.Add("channelIds", id)
+	}
+	URL.RawQuery = q.Encode()
+	type ChannelResp struct {
+		Response
+		Content struct {
+			Data []Channel `json:"data"`
+		} `json:"content"`
+	}
+	resp, err := rest.Get[ChannelResp](ctx, s.chzzk.c, URL.String())
+	if err != nil {
+		return nil, err
+	}
+	if err := mightError(resp.Response); err != nil {
+		return nil, err
+	}
+	var channels []Channel
+	if resp != nil {
+		channels = resp.Content.Data
+	}
+	return channels, nil
+}
+
+func (s *ChannelService) managers(ctx context.Context) ([]Manager, error) {
+	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "streaming-roles")
+	if err != nil {
+		return nil, err
+	}
+	type ManagerResp struct {
+		Response
+		Content struct {
+			Data []Manager `json:"data"`
+		} `json:"content"`
+	}
+	resp, err := rest.Get[ManagerResp](ctx, s.chzzk.c, u)
+	if err != nil {
+		return nil, err
+	}
+	if err := mightError(resp.Response); err != nil {
+		return nil, err
+	}
+	var managers []Manager
+	if resp != nil {
+		managers = resp.Content.Data
+	}
+	return managers, nil
+}
+
+func (s *ChannelService) followers(ctx context.Context, page, size int) ([]Follower, int, error) {
+	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "followers")
+	if err != nil {
+		return nil, 0, err
+	}
+	URL, err := url.Parse(u)
+	if err != nil {
+		return nil, 0, err
+	}
+	q := URL.Query()
+	q.Set("page", strconv.Itoa(page))
+	q.Set("size", strconv.Itoa(size))
+	URL.RawQuery = q.Encode()
+
+	type FollowerResp struct {
+		Response
+		Content struct {
+			Data []Follower `json:"data"`
+		} `json:"content"`
+	}
+	resp, err := rest.Get[FollowerResp](ctx, s.chzzk.c, URL.String())
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := mightError(resp.Response); err != nil {
+		return nil, 0, err
+	}
+	var followers []Follower
+	if resp != nil {
+		followers = resp.Content.Data
+	}
+	return followers, page + 1, nil
+}
+
+func (s *ChannelService) subscribers(ctx context.Context, page, size int, sort SubscriptionSort) ([]Subscriber, int, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixChannel, "subscribers")
 	if err != nil {
 		return nil, 0, err
@@ -212,9 +224,9 @@ func (s *ChannelService) Subscribers(ctx context.Context, page, size *int, sort 
 		return nil, 0, err
 	}
 	q := URL.Query()
-	q.Set("page", strconv.Itoa(defaultPage))
-	q.Set("size", strconv.Itoa(defaultSize))
-	q.Set("sort", string(defaultSort))
+	q.Set("page", strconv.Itoa(page))
+	q.Set("size", strconv.Itoa(size))
+	q.Set("sort", string(sort))
 	URL.RawQuery = q.Encode()
 
 	type SubscriberResp struct {
@@ -223,7 +235,7 @@ func (s *ChannelService) Subscribers(ctx context.Context, page, size *int, sort 
 			Data []Subscriber `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := roundtrip.Get[SubscriberResp](ctx, s.chzzk.c, URL.String())
+	resp, err := rest.Get[SubscriberResp](ctx, s.chzzk.c, URL.String())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -234,5 +246,5 @@ func (s *ChannelService) Subscribers(ctx context.Context, page, size *int, sort 
 	if resp != nil {
 		subscribers = resp.Content.Data
 	}
-	return subscribers, nextPage, nil
+	return subscribers, page + 1, nil
 }

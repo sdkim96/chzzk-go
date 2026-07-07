@@ -38,58 +38,58 @@ func channelID(t *testing.T) string {
 
 // --- Batch (WithClientAuth) ---
 
-func Test_Batch_WithClientAuth(t *testing.T) {
+func Test_Get_WithClientAuth(t *testing.T) {
 	c := channelClientAuth(t)
 	id := channelID(t)
 
-	channels, err := c.Channel.Batch(context.Background(), id)
+	channels, err := c.Channel.Get(context.Background(), id)
 	if err != nil {
-		t.Fatalf("Batch failed: %v", err)
+		t.Fatalf("Get failed: %v", err)
 	}
 	if len(channels) == 0 {
-		t.Fatal("Batch returned empty result")
+		t.Fatal("Get returned empty result")
 	}
 	t.Logf("Channel: %+v", channels[0])
 }
 
-func Test_Batch_WithClientAuth_Multiple(t *testing.T) {
+func Test_Get_WithClientAuth_Multiple(t *testing.T) {
 	c := channelClientAuth(t)
 	id := channelID(t)
 
-	channels, err := c.Channel.Batch(context.Background(), id, id)
+	channels, err := c.Channel.Get(context.Background(), id, id)
 	if err != nil {
-		t.Fatalf("Batch failed: %v", err)
+		t.Fatalf("Get failed: %v", err)
 	}
 	if len(channels) == 0 {
-		t.Fatal("Batch returned empty result")
+		t.Fatal("Get returned empty result")
 	}
 	t.Logf("Channels count: %d", len(channels))
 }
 
-func Test_Batch_TooMany(t *testing.T) {
+func Test_Get_TooMany(t *testing.T) {
 	c := New(nil)
 
 	ids := make([]string, 21)
 	for i := range ids {
 		ids[i] = "dummy"
 	}
-	_, err := c.Channel.Batch(context.Background(), ids...)
+	_, err := c.Channel.Get(context.Background(), ids...)
 	if err == nil {
-		t.Fatal("Batch should fail with more than 20 IDs")
+		t.Fatal("Get should fail with more than 20 IDs")
 	}
 }
 
 // --- Batch (WithAPIKey) should fail ---
 
-func Test_Batch_WithAPIKey(t *testing.T) {
+func Test_Get_WithAPIKey(t *testing.T) {
 	c := channelAPIKey(t)
 	id := channelID(t)
 
-	_, err := c.Channel.Batch(context.Background(), id)
+	_, err := c.Channel.Get(context.Background(), id)
 	if err == nil {
-		t.Log("Batch with APIKey succeeded (unexpected — this API typically requires ClientAuth)")
+		t.Log("Get with APIKey succeeded (unexpected — this API typically requires ClientAuth)")
 	} else {
-		t.Logf("Batch with APIKey failed as expected: %v", err)
+		t.Logf("Get with APIKey failed as expected: %v", err)
 	}
 }
 
