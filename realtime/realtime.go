@@ -10,16 +10,3 @@ type Realtime interface {
 	Loop(ctx context.Context, recv chan []byte, send chan []byte, errCh chan error)
 	Close(ctx context.Context) error
 }
-
-// Run is a helper function that sets up the real-time connection and starts the loop in a separate goroutine.
-func Run(ctx context.Context, rt Realtime, url string) (chan []byte, chan []byte, chan error, error) {
-	if err := rt.Dial(ctx, url); err != nil {
-		return nil, nil, nil, err
-	}
-	recv, send, errChan := make(chan []byte), make(chan []byte), make(chan error, 1)
-	go func() {
-		defer rt.Close(ctx)
-		rt.Loop(ctx, recv, send, errChan)
-	}()
-	return recv, send, errChan, nil
-}
