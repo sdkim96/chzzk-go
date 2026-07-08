@@ -42,7 +42,7 @@ func (s *UserService) me(ctx context.Context) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	return &resp.Content, nil

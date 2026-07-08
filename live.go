@@ -149,7 +149,7 @@ func (s *LiveService) get(ctx context.Context, size int, next *string) ([]Live, 
 	if err != nil {
 		return nil, "", err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, "", err
 	}
 
@@ -171,7 +171,7 @@ func (s *LiveService) key(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return "", err
 	}
 	return resp.Content.Key, nil
@@ -199,7 +199,7 @@ func (s *LiveService) setting(ctx context.Context) (*LiveSetting, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	setting := &LiveSetting{
@@ -249,7 +249,7 @@ func (s *LiveService) patchSetting(ctx context.Context, p *PatchLiveSettingReque
 	if err != nil {
 		return fmt.Errorf("chzzk: failed to patch live setting: %w", err)
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return err
 	}
 	return nil

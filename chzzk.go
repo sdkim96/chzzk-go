@@ -197,7 +197,7 @@ func (chz *Chzzk) copy() *Chzzk {
 	return chz2
 }
 
-func mightError(resp Response) error {
+func MightError(resp Response) error {
 	if resp.Code >= 200 && resp.Code < 300 {
 		return nil
 	}
