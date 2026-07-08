@@ -5,14 +5,14 @@ package realtime
 
 import "context"
 
-type RealTime interface {
+type Realtime interface {
 	Dial(ctx context.Context, url string) error
-	Loop(ctx context.Context, recv <-chan []byte, send chan<- []byte, err chan<- error)
+	Loop(ctx context.Context, recv chan []byte, send chan []byte, errCh chan error)
 	Close(ctx context.Context) error
 }
 
 // Run is a helper function that sets up the real-time connection and starts the loop in a separate goroutine.
-func Run(ctx context.Context, rt RealTime, url string) (<-chan []byte, chan<- []byte, <-chan error, error) {
+func Run(ctx context.Context, rt Realtime, url string) (chan []byte, chan []byte, chan error, error) {
 	if err := rt.Dial(ctx, url); err != nil {
 		return nil, nil, nil, err
 	}
