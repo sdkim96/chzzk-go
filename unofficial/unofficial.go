@@ -17,8 +17,11 @@ import (
 	"github.com/sdkim96/chzzk-go/internal/rest"
 )
 
-const ChzzkBaseURL = "https://api.chzzk.naver.com"
-const NaverGameBaseURL = "https://comm-api.game.naver.com"
+const (
+	ChzzkBaseURL     = "https://api.chzzk.naver.com"
+	NaverGameBaseURL = "https://comm-api.game.naver.com"
+	UserAgent        = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
 
 // UnofficialChzzk is a client for accessing unofficial features of the Chzzk API.
 //
@@ -53,7 +56,7 @@ func New(chz *chzzk.Chzzk, c *http.Client) (*UnofficialChzzk, error) {
 	}
 	hc.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		req = req.Clone(req.Context())
-		req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+		req.Header.Set("User-Agent", UserAgent)
 		return originalTransport.RoundTrip(req)
 	})
 

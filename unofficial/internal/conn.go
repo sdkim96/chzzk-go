@@ -9,6 +9,8 @@ import (
 	ws "github.com/coder/websocket"
 )
 
+// TODO: Move this package to realtime package.
+
 type Conn struct {
 	c    *http.Client
 	conn *ws.Conn
