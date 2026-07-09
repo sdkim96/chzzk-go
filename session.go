@@ -83,7 +83,7 @@ func (s *SessionService) auth(ctx context.Context, u string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := mightError(authResp.Response); err != nil {
+	if err := MightError(authResp.Response); err != nil {
 		return "", err
 	}
 	return authResp.Content.URL, nil

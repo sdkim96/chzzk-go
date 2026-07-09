@@ -100,7 +100,7 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	return &resp.Content, nil
@@ -116,7 +116,7 @@ func (s *TokenService) revoke(ctx context.Context, r RevokeTokenRequest) error {
 	if err != nil {
 		return err
 	}
-	if err := mightError(*resp); err != nil {
+	if err := MightError(*resp); err != nil {
 		return err
 	}
 

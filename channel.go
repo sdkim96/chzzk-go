@@ -145,7 +145,7 @@ func (s *ChannelService) get(ctx context.Context, ids ...string) ([]Channel, err
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	var channels []Channel
@@ -170,7 +170,7 @@ func (s *ChannelService) managers(ctx context.Context) ([]Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	var managers []Manager
@@ -204,7 +204,7 @@ func (s *ChannelService) followers(ctx context.Context, page, size int) ([]Follo
 	if err != nil {
 		return nil, 0, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, 0, err
 	}
 	var followers []Follower
@@ -239,7 +239,7 @@ func (s *ChannelService) subscribers(ctx context.Context, page, size int, sort S
 	if err != nil {
 		return nil, 0, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, 0, err
 	}
 	var subscribers []Subscriber

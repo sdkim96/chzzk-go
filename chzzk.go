@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version     = "0.3.0"
+	Version     = "0.4.0"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
@@ -197,7 +197,7 @@ func (chz *Chzzk) copy() *Chzzk {
 	return chz2
 }
 
-func mightError(resp Response) error {
+func MightError(resp Response) error {
 	if resp.Code >= 200 && resp.Code < 300 {
 		return nil
 	}

@@ -68,7 +68,7 @@ func (s *CategoryService) search(ctx context.Context, query string, size int) ([
 	if err != nil {
 		return nil, err
 	}
-	if err := mightError(resp.Response); err != nil {
+	if err := MightError(resp.Response); err != nil {
 		return nil, err
 	}
 	var categories []Category
