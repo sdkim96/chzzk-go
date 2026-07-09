@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version     = "0.4.0"
+	Version     = "0.4.1"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"

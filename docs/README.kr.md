@@ -206,6 +206,39 @@ defer conn.Close(ctx, 1000, "done")
 err = conn.Loop(ctx) // 컨텍스트가 취소되거나 에러가 발생할 때까지 블로킹
 ```
 
+### 비공식 채팅 (WebSocket)
+
+`unofficial` 패키지는 치지직 채팅에 WebSocket으로 직접 연결하여 메시지를 읽고 쓸 수 있습니다.
+
+> **주의**: 비공식 API를 사용합니다. 남용 시 차단될 수 있으며, 사용에 따른 책임은 본인에게 있습니다.
+
+```go
+import (
+    "github.com/sdkim96/chzzk-go"
+    "github.com/sdkim96/chzzk-go/unofficial"
+)
+
+ctx := context.Background()
+chz := chzzk.New(nil)
+uc, _ := unofficial.New(chz, nil)
+
+// 읽기 전용 (인증 불필요)
+liveID, _ := uc.Live.ID(ctx, "채널해시")
+token, _ := uc.Chat.Token(ctx, liveID)
+
+recv, _ := uc.Chat.ReadOnlyConnect(ctx, liveID, token)
+for msg := range recv {
+    fmt.Println(string(msg))
+}
+
+// 양방향 (NID 쿠키 필요)
+uc, _ = uc.WithCookie(ctx, "NID_AUT값", "NID_SES값")
+
+liveID, _ = uc.Live.ID(ctx, "채널해시")
+token, _ = uc.Chat.Token(ctx, liveID)
+recv, send, sid, _ := uc.Chat.Connect(ctx, liveID, token)
+```
+
 ## 테스트
 
 ```bash
@@ -214,6 +247,10 @@ go test ./...
 
 # 통합 테스트 (CHZZK_CLIENT_ID, CHZZK_CLIENT_SECRET 환경변수 필요)
 go test -tags=integration ./...
+
+# 비공식 통합 테스트 (NID 쿠키 필요)
+NID_AUT="..." NID_SES="..." CHZZK_CHANNEL_ID="..." \
+  go test -tags=integration ./unofficial/ -v
 ```
 
 ## 라이선스

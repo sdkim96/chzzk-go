@@ -203,6 +203,39 @@ defer conn.Close(ctx, 1000, "done")
 err = conn.Loop(ctx) // blocks until context is cancelled or error
 ```
 
+### Unofficial Chat (WebSocket)
+
+The `unofficial` package provides direct WebSocket access to Chzzk chat, including both reading and writing messages.
+
+> **Warning**: These features use undocumented APIs. Use at your own risk.
+
+```go
+import (
+    "github.com/sdkim96/chzzk-go"
+    "github.com/sdkim96/chzzk-go/unofficial"
+)
+
+ctx := context.Background()
+chz := chzzk.New(nil)
+uc, _ := unofficial.New(chz, nil)
+
+// Read-only (no auth required)
+liveID, _ := uc.Live.ID(ctx, "channel-hash")
+token, _ := uc.Chat.Token(ctx, liveID)
+
+recv, _ := uc.Chat.ReadOnlyConnect(ctx, liveID, token)
+for msg := range recv {
+    fmt.Println(string(msg))
+}
+
+// Bidirectional (requires NID cookies)
+uc, _ = uc.WithCookie(ctx, "NID_AUT_value", "NID_SES_value")
+
+liveID, _ = uc.Live.ID(ctx, "channel-hash")
+token, _ = uc.Chat.Token(ctx, liveID)
+recv, send, sid, _ := uc.Chat.Connect(ctx, liveID, token)
+```
+
 ## Testing
 
 ```bash
@@ -211,6 +244,10 @@ go test ./...
 
 # Integration tests (requires CHZZK_CLIENT_ID and CHZZK_CLIENT_SECRET)
 go test -tags=integration ./...
+
+# Unofficial integration tests (requires NID cookies)
+NID_AUT="..." NID_SES="..." CHZZK_CHANNEL_ID="..." \
+  go test -tags=integration ./unofficial/ -v
 ```
 
 ## License
