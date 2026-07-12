@@ -8,7 +8,7 @@ import (
 	"github.com/sdkim96/chzzk-go"
 )
 
-func testClient(t *testing.T) *UnofficialChzzk {
+func testClient(t *testing.T) *Client {
 	t.Helper()
 	chz := chzzk.New(nil)
 	uc, err := New(chz, nil)

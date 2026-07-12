@@ -23,15 +23,10 @@ const (
 	UserAgent        = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
-// UnofficialChzzk is a client for accessing unofficial features of the Chzzk API.
-//
-// The embedded Chzzk client is used when the official features need to be called during execution of unofficial features.
-//
-// The underlying http.Clients, which are both the c and chzzk.c don't share the same configurations except for the transport.
-// The transport is shared between the two clients, enabling connection reuse and keep-alive.
-type UnofficialChzzk struct {
-	c     *http.Client
-	chzzk *chzzk.Chzzk
+// Client manages communications for using unofficial features of the Chzzk API.
+type Client struct {
+	httpClient *http.Client  // HTTP client is used for making requests to the unofficial Chzzk API.
+	chzzk      *chzzk.Client // chzzk client is used for making requests to the official Chzzk API.
 
 	// user ID hash, empty if anonymous
 	uid string
@@ -40,13 +35,14 @@ type UnofficialChzzk struct {
 	Live *LiveService
 }
 
-func New(chz *chzzk.Chzzk, c *http.Client) (*UnofficialChzzk, error) {
+// New creats a new unofficial client for accessing unofficial features of the Chzzk API.
+func New(chz *chzzk.Client, httpClient *http.Client) (*Client, error) {
 	if chz == nil {
 		return nil, errors.New("unofficial: chzzk client cannot be nil")
 	}
 	hc := &http.Client{}
-	if c != nil {
-		cp := *c
+	if httpClient != nil {
+		cp := *httpClient
 		hc = &cp
 	}
 
@@ -60,24 +56,24 @@ func New(chz *chzzk.Chzzk, c *http.Client) (*UnofficialChzzk, error) {
 		return originalTransport.RoundTrip(req)
 	})
 
-	uc := &UnofficialChzzk{chzzk: chz, c: hc}
+	uc := &Client{httpClient: hc, chzzk: chz}
 	uc.initialize()
 	return uc, nil
 }
 
-// WithCookie returns a new UnofficialChzzk client with the provided NID cookies.
+// WithCookie returns a new Client with the provided NID cookies.
 // This enables authenticated features such as sending chat messages via [ChatService.Connect].
 // The user ID hash is fetched automatically from the Chzzk API.
 //   - endpoint: nng_main/v1/user/getUserStatus
-func (u *UnofficialChzzk) WithCookie(ctx context.Context, nidAut, nidSes string) (*UnofficialChzzk, error) {
+func (u *Client) WithCookie(ctx context.Context, nidAut, nidSes string) (*Client, error) {
 	u2 := u.copy()
 
-	originalTransport := u2.c.Transport
+	originalTransport := u2.httpClient.Transport
 	if originalTransport == nil {
 		originalTransport = http.DefaultTransport
 	}
 
-	u2.c.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	u2.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		req = req.Clone(req.Context())
 		req.AddCookie(&http.Cookie{Name: "NID_AUT", Value: nidAut})
 		req.AddCookie(&http.Cookie{Name: "NID_SES", Value: nidSes})
@@ -86,35 +82,35 @@ func (u *UnofficialChzzk) WithCookie(ctx context.Context, nidAut, nidSes string)
 
 	uid, err := u2.userID(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unofficial: failed to fetch uid: %w", err)
+		return nil, fmt.Errorf("unofficial: failed to fetch user ID: %w", err)
 	}
 	u2.uid = uid
 
 	return u2, nil
 }
 
-func (u *UnofficialChzzk) initialize() {
-	u.Chat = &ChatService{unofficial: u}
-	u.Live = &LiveService{unofficial: u}
+func (u *Client) initialize() {
+	u.Chat = &ChatService{uc: u}
+	u.Live = &LiveService{uc: u}
 }
 
-func (u *UnofficialChzzk) copy() *UnofficialChzzk {
-	u2 := &UnofficialChzzk{
-		chzzk: u.chzzk,
-		c:     &http.Client{},
-		uid:   u.uid,
+func (u *Client) copy() *Client {
+	u2 := &Client{
+		chzzk:      u.chzzk,
+		httpClient: &http.Client{},
+		uid:        u.uid,
 	}
-	if u.c != nil {
-		u2.c.Transport = u.c.Transport
-		u2.c.CheckRedirect = u.c.CheckRedirect
-		u2.c.Jar = u.c.Jar
-		u2.c.Timeout = u.c.Timeout
+	if u.httpClient != nil {
+		u2.httpClient.Transport = u.httpClient.Transport
+		u2.httpClient.CheckRedirect = u.httpClient.CheckRedirect
+		u2.httpClient.Jar = u.httpClient.Jar
+		u2.httpClient.Timeout = u.httpClient.Timeout
 	}
 	u2.initialize()
 	return u2
 }
 
-func (u *UnofficialChzzk) userID(ctx context.Context) (string, error) {
+func (u *Client) userID(ctx context.Context) (string, error) {
 	p, err := url.JoinPath(NaverGameBaseURL, "nng_main", "v1", "user", "getUserStatus")
 	if err != nil {
 		return "", err
@@ -125,7 +121,7 @@ func (u *UnofficialChzzk) userID(ctx context.Context) (string, error) {
 			UserIDHash string `json:"userIdHash"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[userResp](ctx, u.c, p)
+	resp, err := rest.Get[userResp](ctx, u.httpClient, p)
 	if err != nil {
 		return "", err
 	}

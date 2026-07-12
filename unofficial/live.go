@@ -10,7 +10,7 @@ import (
 
 // LiveService provides methods for accessing unofficial live streaming features of the Chzzk API.
 type LiveService struct {
-	unofficial *UnofficialChzzk
+	uc *Client
 }
 
 // ID retrieves the chat channel ID for a given channel.
@@ -36,7 +36,7 @@ func (s *LiveService) id(ctx context.Context, channelID string) (string, error) 
 			ChatChannelID string `json:"chatChannelId"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[LiveChannelResp](ctx, s.unofficial.c, pURL.String())
+	resp, err := rest.Get[LiveChannelResp](ctx, s.uc.httpClient, pURL.String())
 	if err != nil {
 		return "", err
 	}

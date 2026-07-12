@@ -8,7 +8,7 @@ import (
 func Test_New(t *testing.T) {
 
 	chzzk := New(nil)
-	if chzzk.c == nil {
+	if chzzk.httpClient == nil {
 		t.Errorf("New(nil) returned a nil http.Client")
 	}
 	if chzzk.User == nil {
@@ -16,7 +16,7 @@ func Test_New(t *testing.T) {
 	}
 
 	chzzk2 := New(http.DefaultClient)
-	if chzzk2.c == nil {
+	if chzzk2.httpClient == nil {
 		t.Errorf("New(http.DefaultClient) returned a nil http.Client")
 	}
 	if chzzk2.User == nil {
@@ -26,7 +26,7 @@ func Test_New(t *testing.T) {
 }
 
 func Test_initialize(t *testing.T) {
-	chzzk := &Chzzk{}
+	chzzk := &Client{}
 	chzzk.initialize()
 	if chzzk.User == nil {
 		t.Errorf("initialize() did not initialize UserService")
@@ -58,7 +58,7 @@ func Test_WithAPIKey(t *testing.T) {
 
 	// Check if the Transport is set correctly
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	resp, err := chzzk2.c.Transport.RoundTrip(req)
+	resp, err := chzzk2.httpClient.Transport.RoundTrip(req)
 	if err != nil {
 		t.Errorf("WithAPIKey() Transport RoundTrip error: %v", err)
 	}
@@ -91,7 +91,7 @@ func Test_WithHooks(t *testing.T) {
 
 	// Check if the hooks are called correctly
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	chzzk2.c.Transport.RoundTrip(req)
+	chzzk2.httpClient.Transport.RoundTrip(req)
 
 	if !beforeHookCalled {
 		t.Errorf("WithHooks() did not call the before hook")
@@ -115,7 +115,7 @@ func Test_WithHooks_NilHooks(t *testing.T) {
 
 	// Check if the Transport is still functional
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	_, err := chzzk2.c.Transport.RoundTrip(req)
+	_, err := chzzk2.httpClient.Transport.RoundTrip(req)
 	if err != nil {
 		t.Errorf("WithHooks() Transport RoundTrip error with nil hooks: %v", err)
 	}
@@ -140,7 +140,7 @@ func Test_WithAPIKey_And_WithHooks(t *testing.T) {
 
 	// Check if the Transport is set correctly and hooks are called
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	resp, err := chzzk2.c.Transport.RoundTrip(req)
+	resp, err := chzzk2.httpClient.Transport.RoundTrip(req)
 	if err != nil {
 		t.Errorf("WithAPIKey().WithHooks() Transport RoundTrip error: %v", err)
 	}

@@ -1,4 +1,4 @@
-package internal
+package realtime
 
 import (
 	"context"
@@ -22,44 +22,46 @@ func Test_ChatConn(t *testing.T) {
 func Test_ChatConn_Loop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+
 	conn := NewConn(http.DefaultClient)
+	defer conn.Close(ctx, ws.StatusNormalClosure, "test done")
 	if err := conn.Dial(ctx, "wss://echo.websocket.org"); err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
 
+	recvCh := make(chan []byte)
 	sendCh := make(chan []byte)
+	errCh := make(chan error, 1)
 
-	recvCh, errCh, err := conn.Start(ctx, sendCh)
-	if err != nil {
-		t.Fatalf("failed to start: %v", err)
-	}
-
-	defer conn.Close(ctx, ws.StatusNormalClosure, "test done")
+	go func() {
+		err := conn.Loop(ctx, recvCh, sendCh)
+		if err != nil {
+			errCh <- err
+		}
+	}()
 
 	for {
 		time.Sleep(time.Second)
 		t.Logf("Sending message...")
 		select {
 		case <-ctx.Done():
+			close(recvCh)
 			close(sendCh)
-			return
+			close(errCh)
 		case sendCh <- []byte("Hello, WebSocket!"):
-			t.Log("message sent.")
+			t.Logf("Message sent.")
 		case err := <-errCh:
-			close(sendCh)
-			t.Fatalf("error from errCh: %v", err)
-			return
+			t.Fatalf("Loop error: %v", err)
 		}
 		select {
 		case <-ctx.Done():
+			close(recvCh)
 			close(sendCh)
-			return
+			close(errCh)
 		case msg := <-recvCh:
 			t.Logf("Received message: %s", string(msg))
 		case err := <-errCh:
-			close(sendCh)
-			t.Fatalf("error from errCh: %v", err)
-			return
+			t.Fatalf("Loop error: %v", err)
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/sdkim96/chzzk-go"
 	"github.com/sdkim96/chzzk-go/internal/rest"
-	iconn "github.com/sdkim96/chzzk-go/unofficial/internal"
+	"github.com/sdkim96/chzzk-go/realtime"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 
 // ChatService serves an API for connecting to the unofficial Chat WebSocket API of Chzzk.
 type ChatService struct {
-	unofficial *UnofficialChzzk
+	uc *Client
 }
 
 type chatState struct {
@@ -69,7 +69,7 @@ func (s *ChatService) ReadOnlyConnect(ctx context.Context, liveID string, token 
 //   - protocol: wss://kr-ss{1-9}.chat.naver.com/chat
 //   - credential: [UnofficialChzzk.WithCookie]
 func (s *ChatService) Connect(ctx context.Context, liveID string, token *ChatToken) (recv <-chan []byte, send chan<- []byte, sid string, err error) {
-	if s.unofficial.uid == "" {
+	if s.uc.uid == "" {
 		return nil, nil, "", fmt.Errorf("chat: Connect requires authentication. use WithCookie first, or use ReadOnlyConnect")
 	}
 	return s.connect(ctx, "rw", liveID, token)
@@ -96,7 +96,7 @@ func (s *ChatService) token(ctx context.Context, liveID string) (*ChatToken, err
 			ExtraToken  string `json:"extraToken"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[AccessTokenResp](ctx, s.unofficial.c, pURL.String())
+	resp, err := rest.Get[AccessTokenResp](ctx, s.uc.httpClient, pURL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (s *ChatService) connect(ctx context.Context, op string, liveID string, tok
 	}
 	wsURL := fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(liveID))
 
-	conn := iconn.NewConn(s.unofficial.c)
+	conn := realtime.NewConn(s.uc.httpClient)
 	if err := conn.Dial(ctx, wsURL); err != nil {
 		return nil, nil, "", fmt.Errorf("chat: dial failed: %w", err)
 	}
@@ -176,7 +176,7 @@ func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
 		auth string = "READ"
 	)
 	if st.op == "rw" {
-		uid = s.unofficial.uid
+		uid = s.uc.uid
 		auth = "SEND"
 	}
 
@@ -227,7 +227,7 @@ func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
 	}
 }
 
-func (s *ChatService) loop(ctx context.Context, conn *iconn.Conn, recv chan<- []byte, send <-chan []byte, st chatState) {
+func (s *ChatService) loop(ctx context.Context, conn *realtime.Conn, recv chan<- []byte, send <-chan []byte, st chatState) {
 	type wsResponse struct {
 		Bdy json.RawMessage `json:"bdy"`
 		Cmd int             `json:"cmd"`

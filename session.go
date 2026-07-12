@@ -9,7 +9,7 @@ import (
 )
 
 type SessionService struct {
-	chzzk *Chzzk
+	c *Client
 }
 
 // AuthClient returns a URL for connecting to the Chzzk session service via client credentials.
@@ -79,7 +79,7 @@ func (s *SessionService) auth(ctx context.Context, u string) (string, error) {
 			URL string `json:"url"`
 		} `json:"content"`
 	}
-	authResp, err := rest.Get[AuthResp](ctx, s.chzzk.c, u)
+	authResp, err := rest.Get[AuthResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +98,7 @@ func (s *SessionService) sub(ctx context.Context, u, sk string) error {
 	q.Set("sessionKey", sk)
 	URL.RawQuery = q.Encode()
 
-	_, err = rest.Post[Response](ctx, s.chzzk.c, URL.String(), nil)
+	_, err = rest.Post[Response](ctx, s.c.httpClient, URL.String(), nil)
 	if err != nil {
 		return err
 	}

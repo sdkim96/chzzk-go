@@ -12,7 +12,7 @@ import (
 
 // LiveService provides methods for accessing live streaming features of the Chzzk API.
 type LiveService struct {
-	chzzk *Chzzk
+	c *Client
 }
 
 type Live struct {
@@ -145,7 +145,7 @@ func (s *LiveService) get(ctx context.Context, size int, next *string) ([]Live, 
 			Page livePage `json:"page"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[LiveResp](ctx, s.chzzk.c, URL.String())
+	resp, err := rest.Get[LiveResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, "", err
 	}
@@ -167,7 +167,7 @@ func (s *LiveService) key(ctx context.Context) (string, error) {
 			Key string `json:"key"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[KeyResp](ctx, s.chzzk.c, u)
+	resp, err := rest.Get[KeyResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return "", err
 	}
@@ -195,7 +195,7 @@ func (s *LiveService) setting(ctx context.Context) (*LiveSetting, error) {
 			} `json:"category"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[SettingResp](ctx, s.chzzk.c, u)
+	resp, err := rest.Get[SettingResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (s *LiveService) patchSetting(ctx context.Context, p *PatchLiveSettingReque
 		return fmt.Errorf("chzzk: failed to marshal request body: %w", err)
 	}
 
-	resp, err := rest.Patch[patchSettingResp](ctx, s.chzzk.c, u, body)
+	resp, err := rest.Patch[patchSettingResp](ctx, s.c.httpClient, u, body)
 	if err != nil {
 		return fmt.Errorf("chzzk: failed to patch live setting: %w", err)
 	}

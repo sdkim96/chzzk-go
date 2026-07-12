@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func categoryClientAuth(t *testing.T) *Chzzk {
+func categoryClientAuth(t *testing.T) *Client {
 	t.Helper()
 	clientID := os.Getenv("CHZZK_CLIENT_ID")
 	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
@@ -18,7 +18,7 @@ func categoryClientAuth(t *testing.T) *Chzzk {
 	return New(nil).WithClientAuth(clientID, clientSecret)
 }
 
-func categoryAPIKey(t *testing.T) *Chzzk {
+func categoryAPIKey(t *testing.T) *Client {
 	t.Helper()
 	apiKey := os.Getenv("CHZZK_API_KEY")
 	if apiKey == "" {

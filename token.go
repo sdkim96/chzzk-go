@@ -10,7 +10,7 @@ import (
 )
 
 type TokenService struct {
-	chzzk *Chzzk
+	c *Client
 }
 
 type GrantType string
@@ -96,7 +96,7 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 		Response
 		Content TokenResponse `json:"content"`
 	}
-	resp, err := rest.Post[TokenResp](ctx, s.chzzk.c, u, jsonData)
+	resp, err := rest.Post[TokenResp](ctx, s.c.httpClient, u, jsonData)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,10 @@ func (s *TokenService) revoke(ctx context.Context, r RevokeTokenRequest) error {
 		return fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
 	jsonData, err := json.Marshal(r)
-	resp, err := rest.Post[Response](ctx, s.chzzk.c, u, jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal revoke token request: %w", err)
+	}
+	resp, err := rest.Post[Response](ctx, s.c.httpClient, u, jsonData)
 	if err != nil {
 		return err
 	}

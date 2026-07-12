@@ -10,7 +10,7 @@ import (
 
 // UserService handles APIs prefixed with /users
 type UserService struct {
-	chzzk *Chzzk
+	c *Client
 }
 
 type User struct {
@@ -38,7 +38,7 @@ func (s *UserService) me(ctx context.Context) (*User, error) {
 		Response
 		Content User `json:"content"`
 	}
-	resp, err := rest.Get[UserResp](ctx, s.chzzk.c, u)
+	resp, err := rest.Get[UserResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return nil, err
 	}

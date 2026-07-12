@@ -16,7 +16,7 @@ import (
 //   - news
 //   - just chatting.
 type CategoryService struct {
-	chzzk *Chzzk
+	c *Client
 }
 
 type Category struct {
@@ -64,7 +64,7 @@ func (s *CategoryService) search(ctx context.Context, query string, size int) ([
 			Data []Category `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[CategoryResp](ctx, s.chzzk.c, URL.String())
+	resp, err := rest.Get[CategoryResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, err
 	}

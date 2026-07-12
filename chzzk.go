@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version     = "0.4.1"
+	Version     = "0.4.2"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
@@ -20,10 +20,11 @@ const (
 	prefixChannel  = "/channels"
 	prefixCategory = "/categories"
 	prefixLive     = "/lives"
+	prefixChat     = "/chats"
 )
 
-type Chzzk struct {
-	c *http.Client
+type Client struct {
+	httpClient *http.Client
 
 	// The services
 	Token    *TokenService
@@ -36,8 +37,8 @@ type Chzzk struct {
 
 // New creates a new Chzzk client with the provided http.Client.
 // If the provided http.Client is nil, a new http.Client will be created.
-func New(c *http.Client) *Chzzk {
-	if c == nil {
+func New(httpClient *http.Client) *Client {
+	if httpClient == nil {
 
 		// we don't use the default http.Client. (http.DefaultClient)
 		// Since the default client could be shared by all codebase,
@@ -45,22 +46,22 @@ func New(c *http.Client) *Chzzk {
 		//
 		// Note: this does not mean that we always create a new Transport for each client.
 		// The Transport is SHARED between all clients, enabling connection reuse and keep-alive.
-		c = &http.Client{}
+		httpClient = &http.Client{}
 	} else {
 
 		// This prevents the mutation of the original http.Client
 		// from affecting the new Chzzk client.
-		cp := *c
-		c = &cp
+		cp := *httpClient
+		httpClient = &cp
 	}
 
 	// We always set the User-Agent header for all requests.
-	originalTransport := c.Transport
+	originalTransport := httpClient.Transport
 	if originalTransport == nil {
 		originalTransport = http.DefaultTransport
 	}
 
-	c.Transport = roundTripperFunc(
+	httpClient.Transport = roundTripperFunc(
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 			req2.Header.Set("User-Agent", UserAgent)
@@ -68,9 +69,9 @@ func New(c *http.Client) *Chzzk {
 			return originalTransport.RoundTrip(req2)
 		},
 	)
-	chz := &Chzzk{c: c}
-	chz.initialize()
-	return chz
+	cl := &Client{httpClient: httpClient}
+	cl.initialize()
+	return cl
 }
 
 // Response is a struct that Chzzk always returns in the response body,
@@ -88,15 +89,15 @@ type Response struct {
 // You must either use WithClientAuth or WithAPIKey, not both. Using both will cause unexpected behavior.
 //
 // Check the Chzzk API documentation to see further details: https://chzzk.gitbook.io/chzzk/chzzk-api/tips#access-token-api
-func (chz *Chzzk) WithClientAuth(ID, secret string) *Chzzk {
-	chz2 := chz.copy()
+func (c *Client) WithClientAuth(ID, secret string) *Client {
+	c2 := c.copy()
 
-	originalTransport := chz2.c.Transport
+	originalTransport := c2.httpClient.Transport
 	if originalTransport == nil {
 		originalTransport = http.DefaultTransport
 	}
 
-	chz2.c.Transport = roundTripperFunc(
+	c2.httpClient.Transport = roundTripperFunc(
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 
@@ -107,22 +108,22 @@ func (chz *Chzzk) WithClientAuth(ID, secret string) *Chzzk {
 		},
 	)
 
-	return chz2
+	return c2
 }
 
 // WithAPIKey returns a new Chzzk client with the provided API key.
-func (chz *Chzzk) WithAPIKey(apiKey string) *Chzzk {
-	chz2 := chz.copy()
+func (c *Client) WithAPIKey(apiKey string) *Client {
+	c2 := c.copy()
 
 	// captures the original transport
-	originalTransport := chz2.c.Transport
+	originalTransport := c2.httpClient.Transport
 	if originalTransport == nil {
 		originalTransport = http.DefaultTransport
 	}
 
 	// replace the `transport Function` with a new one that adds the Authorization header,
 	// not the original transport.
-	chz2.c.Transport = roundTripperFunc(
+	c2.httpClient.Transport = roundTripperFunc(
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 			v := fmt.Sprintf("Bearer %s", apiKey)
@@ -131,22 +132,22 @@ func (chz *Chzzk) WithAPIKey(apiKey string) *Chzzk {
 		},
 	)
 
-	return chz2
+	return c2
 }
 
 // WithHooks returns a new Chzzk client with the provided hooks for request and response.
 // Do not modify (read or write req or resp) in the hooks, as it may cause unexpected behavior.
 // The recommended way is to clone the request and response in the hooks, and modify the cloned objects.
 // Or just log the request and response in the hooks, without modifying them.
-func (chz *Chzzk) WithHooks(bef func(req *http.Request), aft func(resp *http.Response)) *Chzzk {
-	chz2 := chz.copy()
+func (c *Client) WithHooks(bef func(req *http.Request), aft func(resp *http.Response)) *Client {
+	c2 := c.copy()
 
-	originalTransport := chz2.c.Transport
+	originalTransport := c2.httpClient.Transport
 	if originalTransport == nil {
 		originalTransport = http.DefaultTransport
 	}
 
-	chz2.c.Transport = roundTripperFunc(
+	c2.httpClient.Transport = roundTripperFunc(
 		func(req *http.Request) (*http.Response, error) {
 			req2 := req.Clone(req.Context())
 			if bef != nil {
@@ -162,41 +163,45 @@ func (chz *Chzzk) WithHooks(bef func(req *http.Request), aft func(resp *http.Res
 			return resp, err
 		},
 	)
-	return chz2
+	return c2
 }
 
 // initialize initializes the Chzzk client,
 // only copy-safe fields should be set in this function.
 // It is called by New and copy.
-func (chz *Chzzk) initialize() {
-	chz.User = &UserService{chzzk: chz}
-	chz.Token = &TokenService{chzzk: chz}
-	chz.Session = &SessionService{chzzk: chz}
-	chz.Channel = &ChannelService{chzzk: chz}
-	chz.Category = &CategoryService{chzzk: chz}
-	chz.Live = &LiveService{chzzk: chz}
+func (c *Client) initialize() {
+	c.User = &UserService{c: c}
+	c.Token = &TokenService{c: c}
+	c.Session = &SessionService{c: c}
+	c.Channel = &ChannelService{c: c}
+	c.Category = &CategoryService{c: c}
+	c.Live = &LiveService{c: c}
 }
 
 // copy copies the Chzzk client, returning a new instance with the same configuration.
 // But same configuration does not mean the same object / pointer.
 // Most of the fields are copied, but the transport is shared.
-func (chz *Chzzk) copy() *Chzzk {
+func (c *Client) copy() *Client {
 
-	chz2 := &Chzzk{c: &http.Client{}}
-	chz2.initialize()
+	c2 := &Client{httpClient: &http.Client{}}
+	c2.initialize()
 
 	// Using the same tranport!
-	if chz.c != nil {
-		chz2.c.Transport = chz.c.Transport
-		chz2.c.CheckRedirect = chz.c.CheckRedirect
-		chz2.c.Jar = chz.c.Jar
-		chz2.c.Timeout = chz.c.Timeout
+	if c.httpClient != nil {
+		c2.httpClient.Transport = c.httpClient.Transport
+		c2.httpClient.CheckRedirect = c.httpClient.CheckRedirect
+		c2.httpClient.Jar = c.httpClient.Jar
+		c2.httpClient.Timeout = c.httpClient.Timeout
 	}
 
 	// could be nil transport.
-	return chz2
+	return c2
 }
 
+// MightError checks the response body for inspecting error from the server.
+//
+// The Chzzk API does not return HTTP error. Rather, it always
+// embeds the [Response] field in the response body, which contains the error code and message.
 func MightError(resp Response) error {
 	if resp.Code >= 200 && resp.Code < 300 {
 		return nil
