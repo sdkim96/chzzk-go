@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func liveClientAuth(t *testing.T) *Chzzk {
+func liveClientAuth(t *testing.T) *Client {
 	t.Helper()
 	clientID := os.Getenv("CHZZK_CLIENT_ID")
 	clientSecret := os.Getenv("CHZZK_CLIENT_SECRET")
@@ -18,7 +18,7 @@ func liveClientAuth(t *testing.T) *Chzzk {
 	return New(nil).WithClientAuth(clientID, clientSecret)
 }
 
-func liveAPIKey(t *testing.T) *Chzzk {
+func liveAPIKey(t *testing.T) *Client {
 	t.Helper()
 	apiKey := os.Getenv("CHZZK_API_KEY")
 	if apiKey == "" {

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version     = "0.4.2"
+	Version     = "0.5.0"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
@@ -33,6 +33,7 @@ type Client struct {
 	Channel  *ChannelService
 	Category *CategoryService
 	Live     *LiveService
+	Chat     *ChatService
 }
 
 // New creates a new Chzzk client with the provided http.Client.
@@ -166,38 +167,6 @@ func (c *Client) WithHooks(bef func(req *http.Request), aft func(resp *http.Resp
 	return c2
 }
 
-// initialize initializes the Chzzk client,
-// only copy-safe fields should be set in this function.
-// It is called by New and copy.
-func (c *Client) initialize() {
-	c.User = &UserService{c: c}
-	c.Token = &TokenService{c: c}
-	c.Session = &SessionService{c: c}
-	c.Channel = &ChannelService{c: c}
-	c.Category = &CategoryService{c: c}
-	c.Live = &LiveService{c: c}
-}
-
-// copy copies the Chzzk client, returning a new instance with the same configuration.
-// But same configuration does not mean the same object / pointer.
-// Most of the fields are copied, but the transport is shared.
-func (c *Client) copy() *Client {
-
-	c2 := &Client{httpClient: &http.Client{}}
-	c2.initialize()
-
-	// Using the same tranport!
-	if c.httpClient != nil {
-		c2.httpClient.Transport = c.httpClient.Transport
-		c2.httpClient.CheckRedirect = c.httpClient.CheckRedirect
-		c2.httpClient.Jar = c.httpClient.Jar
-		c2.httpClient.Timeout = c.httpClient.Timeout
-	}
-
-	// could be nil transport.
-	return c2
-}
-
 // MightError checks the response body for inspecting error from the server.
 //
 // The Chzzk API does not return HTTP error. Rather, it always
@@ -222,6 +191,44 @@ func MightError(resp Response) error {
 	default:
 		return fmt.Errorf("%d: %s", resp.Code, resp.Message)
 	}
+}
+
+// Ptr returns a pointer to the given value.
+func Ptr[T any](v T) *T {
+	return &v
+}
+
+// initialize initializes the Chzzk client,
+// only copy-safe fields should be set in this function.
+// It is called by New and copy.
+func (c *Client) initialize() {
+	c.User = &UserService{c: c}
+	c.Token = &TokenService{c: c}
+	c.Session = &SessionService{c: c}
+	c.Channel = &ChannelService{c: c}
+	c.Category = &CategoryService{c: c}
+	c.Live = &LiveService{c: c}
+	c.Chat = &ChatService{c: c}
+}
+
+// copy copies the Chzzk client, returning a new instance with the same configuration.
+// But same configuration does not mean the same object / pointer.
+// Most of the fields are copied, but the transport is shared.
+func (c *Client) copy() *Client {
+
+	c2 := &Client{httpClient: &http.Client{}}
+	c2.initialize()
+
+	// Using the same tranport!
+	if c.httpClient != nil {
+		c2.httpClient.Transport = c.httpClient.Transport
+		c2.httpClient.CheckRedirect = c.httpClient.CheckRedirect
+		c2.httpClient.Jar = c.httpClient.Jar
+		c2.httpClient.Timeout = c.httpClient.Timeout
+	}
+
+	// could be nil transport.
+	return c2
 }
 
 type roundTripperFunc func(req *http.Request) (*http.Response, error)
