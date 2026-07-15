@@ -31,6 +31,14 @@ func Patch[T any](ctx context.Context, c *http.Client, url string, body []byte) 
 	return do[T](c, req)
 }
 
+func Put[T any](ctx context.Context, c *http.Client, url string, body []byte) (*T, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return do[T](c, req)
+}
+
 func do[T any](c *http.Client, req *http.Request) (*T, error) {
 	resp, err := c.Do(req)
 	if err != nil {
