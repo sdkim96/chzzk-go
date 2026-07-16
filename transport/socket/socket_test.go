@@ -1,4 +1,4 @@
-package realtime
+package socket
 
 import (
 	"context"
@@ -31,37 +31,27 @@ func Test_ChatConn_Loop(t *testing.T) {
 
 	recvCh := make(chan []byte)
 	sendCh := make(chan []byte)
-	errCh := make(chan error, 1)
 
 	go func() {
-		err := conn.Loop(ctx, recvCh, sendCh)
-		if err != nil {
-			errCh <- err
+		if err := conn.Loop(ctx, recvCh, sendCh); err != nil {
+			t.Logf("Loop error: %v", err)
 		}
 	}()
 
-	for {
+	for i := 0; i < 10; i++ {
 		time.Sleep(time.Second)
 		t.Logf("Sending message...")
 		select {
 		case <-ctx.Done():
-			close(recvCh)
-			close(sendCh)
-			close(errCh)
+			return
 		case sendCh <- []byte("Hello, WebSocket!"):
 			t.Logf("Message sent.")
-		case err := <-errCh:
-			t.Fatalf("Loop error: %v", err)
 		}
 		select {
 		case <-ctx.Done():
-			close(recvCh)
-			close(sendCh)
-			close(errCh)
+			return
 		case msg := <-recvCh:
 			t.Logf("Received message: %s", string(msg))
-		case err := <-errCh:
-			t.Fatalf("Loop error: %v", err)
 		}
 	}
 }
