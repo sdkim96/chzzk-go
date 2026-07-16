@@ -6,15 +6,15 @@ import (
 )
 
 const (
-	Version     = "0.5.1"
+	Version     = "0.5.2"
 	BaseURL     = "https://openapi.chzzk.naver.com"
 	OpenV1      = "/open/v1"
 	AuthV1      = "/auth/v1"
 	ContentType = "application/json"
 	UserAgent   = "chzzk-go/" + Version
 
-	// The service prefixes
-	prefixToken    = "/tokens"
+	// NOTE: the token endpoint does not have 's' suffix.
+	prefixToken    = "/token"
 	prefixUser     = "/users"
 	prefixSession  = "/sessions"
 	prefixChannel  = "/channels"
