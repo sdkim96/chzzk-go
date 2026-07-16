@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 type TokenService struct {
@@ -96,7 +96,7 @@ func (s *TokenService) token(ctx context.Context, r any) (*TokenResponse, error)
 		Response
 		Content TokenResponse `json:"content"`
 	}
-	resp, err := rest.Post[TokenResp](ctx, s.c.httpClient, u, jsonData)
+	resp, err := chzzkHttp.Post[TokenResp](ctx, s.c.httpClient, u, jsonData)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (s *TokenService) revoke(ctx context.Context, r RevokeTokenRequest) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal revoke token request: %w", err)
 	}
-	resp, err := rest.Post[Response](ctx, s.c.httpClient, u, jsonData)
+	resp, err := chzzkHttp.Post[Response](ctx, s.c.httpClient, u, jsonData)
 	if err != nil {
 		return err
 	}

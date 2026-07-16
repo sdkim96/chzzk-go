@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 // CategoryService serves an API for searching broadcast categories such as:
@@ -64,7 +64,7 @@ func (s *CategoryService) search(ctx context.Context, query string, size int) ([
 			Data []Category `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[CategoryResp](ctx, s.c.httpClient, URL.String())
+	resp, err := chzzkHttp.Get[CategoryResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, err
 	}

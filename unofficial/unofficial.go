@@ -14,7 +14,7 @@ import (
 	"net/url"
 
 	"github.com/sdkim96/chzzk-go"
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 const (
@@ -121,7 +121,7 @@ func (u *Client) userID(ctx context.Context) (string, error) {
 			UserIDHash string `json:"userIdHash"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[userResp](ctx, u.httpClient, p)
+	resp, err := chzzkHttp.Get[userResp](ctx, u.httpClient, p)
 	if err != nil {
 		return "", err
 	}

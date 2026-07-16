@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 // UserService handles APIs prefixed with /users
@@ -38,7 +38,7 @@ func (s *UserService) me(ctx context.Context) (*User, error) {
 		Response
 		Content User `json:"content"`
 	}
-	resp, err := rest.Get[UserResp](ctx, s.c.httpClient, u)
+	resp, err := chzzkHttp.Get[UserResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return nil, err
 	}

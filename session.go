@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 type SessionService struct {
@@ -19,30 +19,50 @@ type SessionService struct {
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined
 //
 // [Get]: https://google.aip.dev/131
-func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
+func (s *SessionService) AuthClient(ctx context.Context, wsFunc func(string) (string, error)) (string, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
-	return s.auth(ctx, u)
+	sessionURL, err := s.auth(ctx, u)
+	if err != nil {
+		return "", err
+	}
+	if wsFunc != nil {
+		return wsFunc(sessionURL)
+	}
+	return asWebSocketURL(sessionURL)
 }
 
 // AuthUser returns a URL for connecting to the Chzzk session service via user credentials.
+// wsFunc is an optional function that can be provided to customize the WebSocket connection URL.
+// If wsFunc is nil, the default WebSocket URL will be returned.
+//
 //   - pattern: [Get]
 //   - credential: [Chzzk.WithAPIKey]
 //
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-1
 //
 // [Get]: https://google.aip.dev/131
-func (s *SessionService) AuthUser(ctx context.Context) (string, error) {
+func (s *SessionService) AuthUser(ctx context.Context, wsFunc func(string) (string, error)) (string, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
 	}
-	return s.auth(ctx, u)
+	sessionURL, err := s.auth(ctx, u)
+	if err != nil {
+		return "", err
+	}
+	if wsFunc != nil {
+		return wsFunc(sessionURL)
+	}
+	return asWebSocketURL(sessionURL)
 }
 
 // SubscribeChat subscribes to chat events for the given session key.
+// wsFunc is an optional function that can be provided to customize the WebSocket connection URL.
+// If wsFunc is nil, the default WebSocket URL will be returned.
+//
 //   - pattern: [Create]
 //   - credential: [Chzzk.WithClientAuth] or [Chzzk.WithAPIKey]
 //
@@ -79,7 +99,7 @@ func (s *SessionService) auth(ctx context.Context, u string) (string, error) {
 			URL string `json:"url"`
 		} `json:"content"`
 	}
-	authResp, err := rest.Get[AuthResp](ctx, s.c.httpClient, u)
+	authResp, err := chzzkHttp.Get[AuthResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return "", err
 	}
@@ -98,9 +118,23 @@ func (s *SessionService) sub(ctx context.Context, u, sk string) error {
 	q.Set("sessionKey", sk)
 	URL.RawQuery = q.Encode()
 
-	_, err = rest.Post[Response](ctx, s.c.httpClient, URL.String(), nil)
+	_, err = chzzkHttp.Post[Response](ctx, s.c.httpClient, URL.String(), nil)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func asWebSocketURL(u string) (string, error) {
+	parsedURL, err := url.Parse(u)
+	if err != nil {
+		return "", fmt.Errorf("url.Parse() error = %w", err)
+	}
+	parsedURL.Scheme = "wss"
+	parsedURL.Path = "/socket.io/"
+	q := parsedURL.Query()
+	q.Set("EIO", fmt.Sprintf("%d", EngineIOVersion))
+	q.Set("transport", "websocket")
+	parsedURL.RawQuery = q.Encode()
+	return parsedURL.String(), nil
 }

@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/sdkim96/chzzk-go"
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 // LiveService provides methods for accessing unofficial live streaming features of the Chzzk API.
@@ -36,7 +36,7 @@ func (s *LiveService) id(ctx context.Context, channelID string) (string, error) 
 			ChatChannelID string `json:"chatChannelId"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[LiveChannelResp](ctx, s.uc.httpClient, pURL.String())
+	resp, err := chzzkHttp.Get[LiveChannelResp](ctx, s.uc.httpClient, pURL.String())
 	if err != nil {
 		return "", err
 	}

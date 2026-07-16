@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 type ChannelService struct {
@@ -141,7 +141,7 @@ func (s *ChannelService) get(ctx context.Context, ids ...string) ([]Channel, err
 			Data []Channel `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[ChannelResp](ctx, s.c.httpClient, URL.String())
+	resp, err := chzzkHttp.Get[ChannelResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (s *ChannelService) managers(ctx context.Context) ([]Manager, error) {
 			Data []Manager `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[ManagerResp](ctx, s.c.httpClient, u)
+	resp, err := chzzkHttp.Get[ManagerResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (s *ChannelService) followers(ctx context.Context, page, size int) ([]Follo
 			Data []Follower `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[FollowerResp](ctx, s.c.httpClient, URL.String())
+	resp, err := chzzkHttp.Get[FollowerResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -235,7 +235,7 @@ func (s *ChannelService) subscribers(ctx context.Context, page, size int, sort S
 			Data []Subscriber `json:"data"`
 		} `json:"content"`
 	}
-	resp, err := rest.Get[SubscriberResp](ctx, s.c.httpClient, URL.String())
+	resp, err := chzzkHttp.Get[SubscriberResp](ctx, s.c.httpClient, URL.String())
 	if err != nil {
 		return nil, 0, err
 	}
