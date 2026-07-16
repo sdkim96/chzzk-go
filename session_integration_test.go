@@ -32,7 +32,7 @@ func sessionAPIKey(t *testing.T) *Client {
 func Test_AuthClient_WithClientAuth(t *testing.T) {
 	c := sessionClientAuth(t)
 
-	url, err := c.Session.AuthClient(context.Background())
+	url, err := c.Session.AuthClient(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("AuthClient failed: %v", err)
 	}
@@ -47,7 +47,7 @@ func Test_AuthClient_WithClientAuth(t *testing.T) {
 func Test_AuthClient_WithAPIKey(t *testing.T) {
 	c := sessionAPIKey(t)
 
-	_, err := c.Session.AuthClient(context.Background())
+	_, err := c.Session.AuthClient(context.Background(), nil)
 	if err == nil {
 		t.Log("AuthClient with APIKey succeeded (unexpected — this API typically requires ClientAuth)")
 	} else {
@@ -60,7 +60,7 @@ func Test_AuthClient_WithAPIKey(t *testing.T) {
 func Test_AuthUser_WithAPIKey(t *testing.T) {
 	c := sessionAPIKey(t)
 
-	url, err := c.Session.AuthUser(context.Background())
+	url, err := c.Session.AuthUser(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("AuthUser failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func Test_AuthUser_WithAPIKey(t *testing.T) {
 func Test_AuthUser_WithClientAuth(t *testing.T) {
 	c := sessionClientAuth(t)
 
-	_, err := c.Session.AuthUser(context.Background())
+	_, err := c.Session.AuthUser(context.Background(), nil)
 	if err == nil {
 		t.Log("AuthUser with ClientAuth succeeded (unexpected — this API typically requires APIKey)")
 	} else {

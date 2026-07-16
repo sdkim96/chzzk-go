@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sdkim96/chzzk-go/internal/rest"
+	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 )
 
 // ChatService handles APIs prefixed with /chats
@@ -137,7 +137,7 @@ func (s *ChatService) send(ctx context.Context, msg string) (string, error) {
 		return "", err
 	}
 
-	resp, err := rest.Post[SendResp](ctx, s.c.httpClient, u, rawReq)
+	resp, err := chzzkHttp.Post[SendResp](ctx, s.c.httpClient, u, rawReq)
 	if err != nil {
 		return "", err
 	}
@@ -172,7 +172,7 @@ func (s *ChatService) notice(ctx context.Context, req ChatNoticeReq) error {
 	type noticeResp struct {
 		Response
 	}
-	resp, err := rest.Post[noticeResp](ctx, s.c.httpClient, u, rawReq)
+	resp, err := chzzkHttp.Post[noticeResp](ctx, s.c.httpClient, u, rawReq)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (s *ChatService) settings(ctx context.Context) (*ChatSettings, error) {
 		Response
 		Content settings `json:"content"`
 	}
-	resp, err := rest.Get[settingsResp](ctx, s.c.httpClient, u)
+	resp, err := chzzkHttp.Get[settingsResp](ctx, s.c.httpClient, u)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (s *ChatService) updateSettings(ctx context.Context, req ChatSettings) erro
 	if err != nil {
 		return err
 	}
-	resp, err := rest.Put[updateSettingsResp](ctx, s.c.httpClient, u, rawReq)
+	resp, err := chzzkHttp.Put[updateSettingsResp](ctx, s.c.httpClient, u, rawReq)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (s *ChatService) blindMessage(ctx context.Context, req ChatBlindMessageReq)
 	if err != nil {
 		return err
 	}
-	resp, err := rest.Post[blindMessageResp](ctx, s.c.httpClient, u, rawReq)
+	resp, err := chzzkHttp.Post[blindMessageResp](ctx, s.c.httpClient, u, rawReq)
 	if err != nil {
 		return err
 	}

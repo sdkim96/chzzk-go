@@ -126,7 +126,7 @@ func Test_Chat_BlindMessage_WithAPIKey(t *testing.T) {
 	}
 
 	// get chat channel id from session
-	session, err := c.Session.AuthUser(context.Background())
+	session, err := c.Session.AuthUser(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("AuthUser failed: %v", err)
 	}
