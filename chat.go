@@ -27,7 +27,7 @@ const (
 	ChatAvailableForManager    ChatAvailableKind = "manager"
 	ChatAvailableForSubscriber ChatAvailableKind = "subscriber"
 	AuthorityModeAll           AuthorityKind     = "all"
-	AuthorityModelRealName     AuthorityKind     = "realName"
+	AuthorityModeRealName     AuthorityKind     = "realName"
 )
 
 var ErrInvalidNoticeKind = errors.New("chzzk: invalid notice kind")
@@ -51,7 +51,7 @@ type ChatSettings struct {
 
 type ChatFollowerSetting struct {
 	MinFollowerMinute              int
-	AllowSubscriberInFollowerModel bool
+	AllowSubscriberInFollowerMode bool
 }
 
 // ChatBlindMessageReq represents a request to blind (hide) a specific chat message.
@@ -189,7 +189,14 @@ func (s *ChatService) settings(ctx context.Context) (*ChatSettings, error) {
 	}
 	type settingsResp struct {
 		Response
-		Content settings `json:"content"`
+		Content struct {
+			ChatAvailableCondition        string `json:"chatAvailableCondition"`
+			ChatAvailableGroup            string `json:"chatAvailableGroup"`
+			MinFollowerMinute             int    `json:"minFollowerMinute"`
+			AllowSubscriberInFollowerMode bool   `json:"allowSubscriberInFollowerMode"`
+			ChatSlowModeSec               int    `json:"chatSlowModeSec"`
+			ChatEmojiMode                 bool   `json:"chatEmojiMode"`
+		} `json:"content"`
 	}
 	resp, err := chzzkHttp.Get[settingsResp](ctx, s.c.httpClient, u)
 	if err != nil {
@@ -202,7 +209,7 @@ func (s *ChatService) settings(ctx context.Context) (*ChatSettings, error) {
 		Kind: cagToCAK(resp.Content.ChatAvailableGroup),
 		FollowerSetting: &ChatFollowerSetting{
 			MinFollowerMinute:              resp.Content.MinFollowerMinute,
-			AllowSubscriberInFollowerModel: resp.Content.AllowSubscriberInFollowerMode,
+			AllowSubscriberInFollowerMode: resp.Content.AllowSubscriberInFollowerMode,
 		},
 		AuthorityMode: Ptr(cacToAK(resp.Content.ChatAvailableCondition)),
 		SlowModeSec:   Ptr(resp.Content.ChatSlowModeSec),
@@ -217,20 +224,32 @@ func (s *ChatService) updateSettings(ctx context.Context, req ChatSettings) erro
 		return err
 	}
 	type updateSettingsReq struct {
-		settings
+		ChatAvailableCondition        *string `json:"chatAvailableCondition,omitempty"`
+		ChatAvailableGroup            *string `json:"chatAvailableGroup,omitempty"`
+		MinFollowerMinute             *int    `json:"minFollowerMinute,omitempty"`
+		AllowSubscriberInFollowerMode *bool   `json:"allowSubscriberInFollowerMode,omitempty"`
+		ChatSlowModeSec               *int    `json:"chatSlowModeSec,omitempty"`
+		ChatEmojiMode                 *bool   `json:"chatEmojiMode,omitempty"`
 	}
 	type updateSettingsResp struct {
 		Response
 	}
-	settingsReq := updateSettingsReq{
-		settings: settings{
-			ChatAvailableCondition:        akToCAC(*req.AuthorityMode),
-			ChatAvailableGroup:            cakToCAG(req.Kind),
-			MinFollowerMinute:             req.FollowerSetting.MinFollowerMinute,
-			AllowSubscriberInFollowerMode: req.FollowerSetting.AllowSubscriberInFollowerModel,
-			ChatSlowModeSec:               *req.SlowModeSec,
-			ChatEmojiMode:                 *req.IsEmojiMode,
-		},
+	var settingsReq updateSettingsReq
+	if req.Kind != "" {
+		settingsReq.ChatAvailableGroup = Ptr(cakToCAG(req.Kind))
+	}
+	if req.AuthorityMode != nil {
+		settingsReq.ChatAvailableCondition = Ptr(akToCAC(*req.AuthorityMode))
+	}
+	if req.FollowerSetting != nil {
+		settingsReq.MinFollowerMinute = Ptr(req.FollowerSetting.MinFollowerMinute)
+		settingsReq.AllowSubscriberInFollowerMode = Ptr(req.FollowerSetting.AllowSubscriberInFollowerMode)
+	}
+	if req.SlowModeSec != nil {
+		settingsReq.ChatSlowModeSec = req.SlowModeSec
+	}
+	if req.IsEmojiMode != nil {
+		settingsReq.ChatEmojiMode = req.IsEmojiMode
 	}
 	rawReq, err := json.Marshal(settingsReq)
 	if err != nil {
@@ -268,15 +287,6 @@ func (s *ChatService) blindMessage(ctx context.Context, req ChatBlindMessageReq)
 	return nil
 }
 
-type settings struct {
-	ChatAvailableCondition        string `json:"chatAvailableCondition"`
-	ChatAvailableGroup            string `json:"chatAvailableGroup"`
-	MinFollowerMinute             int    `json:"minFollowerMinute"`
-	AllowSubscriberInFollowerMode bool   `json:"allowSubscriberInFollowerMode"`
-	ChatSlowModeSec               int    `json:"chatSlowModeSec"`
-	ChatEmojiMode                 bool   `json:"chatEmojiMode"`
-}
-
 // cakToCG means ChatAvailableKind to ChatAvailableGroup.
 //
 // coverting rules:
@@ -299,7 +309,7 @@ func akToCAC(am AuthorityKind) string {
 	switch am {
 	case AuthorityModeAll:
 		return "NONE"
-	case AuthorityModelRealName:
+	case AuthorityModeRealName:
 		return "REAL_NAME"
 	}
 	return ""
@@ -310,7 +320,7 @@ func cacToAK(cac string) AuthorityKind {
 	case "NONE":
 		return AuthorityModeAll
 	case "REAL_NAME":
-		return AuthorityModelRealName
+		return AuthorityModeRealName
 	}
 	return ""
 }

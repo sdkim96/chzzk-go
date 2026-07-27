@@ -179,28 +179,29 @@ err := c.Session.SubscribeChat(ctx, sessionKey)
 err := c.Session.UnSubscribeChat(ctx, sessionKey)
 ```
 
-### Socket.IO
+### Socket.IO (Real-time Events via Session.Connect)
 
-The `socketio` package provides a Socket.IO v2 client for receiving real-time events.
+`Session.Connect` provides a built-in Socket.IO v2 client for receiving real-time events.
 
 ```go
-import "github.com/sdkim96/chzzk-go/socketio"
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
-conn := socketio.New(wsURL,
-    socketio.WithHandler("CHAT", func(data []byte) error {
+sessionURL, err := c.Session.AuthClient(ctx)
+if err != nil {
+    panic(err)
+}
+
+err = c.Session.Connect(ctx, sessionURL, map[string]chzzk.Handler{
+    "CHAT": func(data []byte) error {
         fmt.Println("Chat:", string(data))
         return nil
-    }),
-    socketio.WithHandler("DONATION", func(data []byte) error {
+    },
+    "DONATION": func(data []byte) error {
         fmt.Println("Donation:", string(data))
         return nil
-    }),
-)
-
-err := conn.Dial(ctx)
-defer conn.Close(ctx, 1000, "done")
-
-err = conn.Loop(ctx) // blocks until context is cancelled or error
+    },
+})
+// blocks until context is cancelled or error
 ```
 
 ### Unofficial Chat (WebSocket)

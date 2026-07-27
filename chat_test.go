@@ -136,14 +136,14 @@ func Test_ChatService_Settings(t *testing.T) {
 	if s.Kind != ChatAvailableForFollower {
 		t.Errorf("expected Kind 'follower', got %q", s.Kind)
 	}
-	if *s.AuthorityMode != AuthorityModelRealName {
+	if *s.AuthorityMode != AuthorityModeRealName {
 		t.Errorf("expected AuthorityMode 'realName', got %q", *s.AuthorityMode)
 	}
 	if s.FollowerSetting.MinFollowerMinute != 10 {
 		t.Errorf("expected MinFollowerMinute 10, got %d", s.FollowerSetting.MinFollowerMinute)
 	}
-	if !s.FollowerSetting.AllowSubscriberInFollowerModel {
-		t.Error("expected AllowSubscriberInFollowerModel to be true")
+	if !s.FollowerSetting.AllowSubscriberInFollowerMode {
+		t.Error("expected AllowSubscriberInFollowerMode to be true")
 	}
 	if *s.SlowModeSec != 5 {
 		t.Errorf("expected SlowModeSec 5, got %d", *s.SlowModeSec)
@@ -158,19 +158,19 @@ func Test_ChatService_UpdateSettings(t *testing.T) {
 		if r.Method != http.MethodPut {
 			t.Errorf("expected PUT, got %s", r.Method)
 		}
-		var body settings
+		var body map[string]any
 		json.NewDecoder(r.Body).Decode(&body)
-		if body.ChatAvailableGroup != "ALL" {
-			t.Errorf("expected ChatAvailableGroup 'ALL', got %q", body.ChatAvailableGroup)
+		if body["chatAvailableGroup"] != "ALL" {
+			t.Errorf("expected chatAvailableGroup 'ALL', got %v", body["chatAvailableGroup"])
 		}
-		if body.ChatAvailableCondition != "NONE" {
-			t.Errorf("expected ChatAvailableCondition 'NONE', got %q", body.ChatAvailableCondition)
+		if body["chatAvailableCondition"] != "NONE" {
+			t.Errorf("expected chatAvailableCondition 'NONE', got %v", body["chatAvailableCondition"])
 		}
-		if body.MinFollowerMinute != 0 {
-			t.Errorf("expected MinFollowerMinute 0, got %d", body.MinFollowerMinute)
+		if body["minFollowerMinute"] != 0.0 {
+			t.Errorf("expected minFollowerMinute 0, got %v", body["minFollowerMinute"])
 		}
-		if body.ChatSlowModeSec != 3 {
-			t.Errorf("expected ChatSlowModeSec 3, got %d", body.ChatSlowModeSec)
+		if body["chatSlowModeSec"] != 3.0 {
+			t.Errorf("expected chatSlowModeSec 3, got %v", body["chatSlowModeSec"])
 		}
 		json.NewEncoder(w).Encode(map[string]any{"code": 200, "message": "OK"})
 	})
@@ -180,13 +180,40 @@ func Test_ChatService_UpdateSettings(t *testing.T) {
 		AuthorityMode: Ptr(AuthorityModeAll),
 		FollowerSetting: &ChatFollowerSetting{
 			MinFollowerMinute:              0,
-			AllowSubscriberInFollowerModel: false,
+			AllowSubscriberInFollowerMode: false,
 		},
 		SlowModeSec: Ptr(3),
 		IsEmojiMode: Ptr(false),
 	})
 	if err != nil {
 		t.Fatalf("UpdateSettings failed: %v", err)
+	}
+}
+
+func Test_ChatService_UpdateSettings_NilFields(t *testing.T) {
+	svc := newTestChatService(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		// Only chatAvailableGroup should be present
+		if body["chatAvailableGroup"] != "ALL" {
+			t.Errorf("expected chatAvailableGroup 'ALL', got %v", body["chatAvailableGroup"])
+		}
+		// Nil fields must be omitted from the request
+		for _, key := range []string{"chatAvailableCondition", "minFollowerMinute", "allowSubscriberInFollowerMode", "chatSlowModeSec", "chatEmojiMode"} {
+			if _, ok := body[key]; ok {
+				t.Errorf("expected %s to be omitted, but it was present", key)
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"code": 200, "message": "OK"})
+	})
+
+	// Only set Kind — leave all pointer fields nil.
+	// This should NOT panic.
+	err := svc.UpdateSettings(context.Background(), ChatSettings{
+		Kind: ChatAvailableForAll,
+	})
+	if err != nil {
+		t.Fatalf("UpdateSettings with nil fields failed: %v", err)
 	}
 }
 
@@ -259,7 +286,7 @@ func Test_akToCAC(t *testing.T) {
 		out string
 	}{
 		{AuthorityModeAll, "NONE"},
-		{AuthorityModelRealName, "REAL_NAME"},
+		{AuthorityModeRealName, "REAL_NAME"},
 	}
 	for _, tt := range tests {
 		if got := akToCAC(tt.in); got != tt.out {
@@ -274,7 +301,7 @@ func Test_cacToAK(t *testing.T) {
 		out AuthorityKind
 	}{
 		{"NONE", AuthorityModeAll},
-		{"REAL_NAME", AuthorityModelRealName},
+		{"REAL_NAME", AuthorityModeRealName},
 		{"UNKNOWN", ""},
 	}
 	for _, tt := range tests {

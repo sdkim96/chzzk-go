@@ -27,8 +27,8 @@ func Test_Chat_Settings_WithAPIKey(t *testing.T) {
 	t.Logf("Settings: Kind=%s, AuthorityMode=%v, SlowModeSec=%v, EmojiMode=%v",
 		settings.Kind, *settings.AuthorityMode, *settings.SlowModeSec, *settings.IsEmojiMode)
 	if settings.FollowerSetting != nil {
-		t.Logf("FollowerSetting: MinFollowerMinute=%d, AllowSubscriberInFollowerModel=%v",
-			settings.FollowerSetting.MinFollowerMinute, settings.FollowerSetting.AllowSubscriberInFollowerModel)
+		t.Logf("FollowerSetting: MinFollowerMinute=%d, AllowSubscriberInFollowerMode=%v",
+			settings.FollowerSetting.MinFollowerMinute, settings.FollowerSetting.AllowSubscriberInFollowerMode)
 	}
 }
 
@@ -75,7 +75,7 @@ func Test_Chat_UpdateSettings_WithAPIKey(t *testing.T) {
 		AuthorityMode: Ptr(AuthorityModeAll),
 		FollowerSetting: &ChatFollowerSetting{
 			MinFollowerMinute:              5,
-			AllowSubscriberInFollowerModel: true,
+			AllowSubscriberInFollowerMode: true,
 		},
 		SlowModeSec: Ptr(3),
 		IsEmojiMode: Ptr(true),

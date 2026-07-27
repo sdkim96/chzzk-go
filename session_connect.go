@@ -55,12 +55,9 @@ const (
 //
 //	t.Logf("Session URL: %s", sessionURL)
 //
-//	wsURL, err := AsWebSocketURL(sessionURL)
-//	t.Logf("WebSocket URL: %s", wsURL)
-//
 //	received := make(chan []byte, 1)
 //	go func() {
-//		c.Session.Connect(ctx, wsURL, map[string]Handler{
+//		c.Session.Connect(ctx, sessionURL, map[string]Handler{
 //			"SYSTEM": func(data []byte) error {
 //				received <- data
 //				return nil

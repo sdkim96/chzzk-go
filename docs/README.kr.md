@@ -182,28 +182,29 @@ err := c.Session.SubscribeChat(ctx, sessionKey)
 err := c.Session.UnSubscribeChat(ctx, sessionKey)
 ```
 
-### Socket.IO
+### Socket.IO (Session.Connect를 통한 실시간 이벤트)
 
-`socketio` 패키지는 실시간 이벤트 수신을 위한 Socket.IO v2 클라이언트를 제공합니다.
+`Session.Connect`는 실시간 이벤트 수신을 위한 Socket.IO v2 클라이언트를 내장하고 있습니다.
 
 ```go
-import "github.com/sdkim96/chzzk-go/socketio"
+c := chzzk.New(nil).WithClientAuth(clientID, clientSecret)
 
-conn := socketio.New(wsURL,
-    socketio.WithHandler("CHAT", func(data []byte) error {
+sessionURL, err := c.Session.AuthClient(ctx)
+if err != nil {
+    panic(err)
+}
+
+err = c.Session.Connect(ctx, sessionURL, map[string]chzzk.Handler{
+    "CHAT": func(data []byte) error {
         fmt.Println("Chat:", string(data))
         return nil
-    }),
-    socketio.WithHandler("DONATION", func(data []byte) error {
+    },
+    "DONATION": func(data []byte) error {
         fmt.Println("Donation:", string(data))
         return nil
-    }),
-)
-
-err := conn.Dial(ctx)
-defer conn.Close(ctx, 1000, "done")
-
-err = conn.Loop(ctx) // 컨텍스트가 취소되거나 에러가 발생할 때까지 블로킹
+    },
+})
+// 컨텍스트가 취소되거나 에러가 발생할 때까지 블로킹
 ```
 
 ### 비공식 채팅 (WebSocket)

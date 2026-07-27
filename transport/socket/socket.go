@@ -1,4 +1,4 @@
-// package realtime provides a WebSocket client that has a full-duplex communication channel over a single TCP connection.
+// package socket provides a WebSocket client that has a full-duplex communication channel over a single TCP connection.
 package socket
 
 import (
@@ -15,8 +15,8 @@ type Conn struct {
 }
 
 var (
-	ErrNotDialed = fmt.Errorf("realtime: not dialed. Call Dial() before Start() or Close()")
-	ErrNilCh     = fmt.Errorf("realtime: send channel or receive channel cannot be nil")
+	ErrNotDialed = fmt.Errorf("socket: not dialed. Call Dial() before Start() or Close()")
+	ErrNilCh     = fmt.Errorf("socket: send channel or receive channel cannot be nil")
 )
 
 func (c *Conn) IsDialed() bool {

@@ -9,7 +9,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/sdkim96/chzzk-go"
 	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
-	realtime "github.com/sdkim96/chzzk-go/transport/socket"
+	"github.com/sdkim96/chzzk-go/transport/socket"
 )
 
 const (
@@ -114,7 +114,7 @@ func (s *ChatService) connect(ctx context.Context, op string, liveID string, tok
 	}
 	wsURL := fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(liveID))
 
-	conn := realtime.NewConn(s.uc.httpClient)
+	conn := socket.NewConn(s.uc.httpClient)
 	if err := conn.Dial(ctx, wsURL); err != nil {
 		return nil, nil, "", fmt.Errorf("chat: dial failed: %w", err)
 	}
@@ -223,7 +223,7 @@ func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
 	}
 }
 
-func (s *ChatService) loop(ctx context.Context, conn *realtime.Conn, recv chan<- []byte, send <-chan []byte, st chatState, loopErrCh <-chan error) {
+func (s *ChatService) loop(ctx context.Context, conn *socket.Conn, recv chan<- []byte, send <-chan []byte, st chatState, loopErrCh <-chan error) {
 	type wsResponse struct {
 		Bdy json.RawMessage `json:"bdy"`
 		Cmd int             `json:"cmd"`
