@@ -43,7 +43,7 @@ func Test_ChatConnect_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := uc.Chat.ReadOnlyConnect(ctx, "AAAAAA", &ChatToken{AccessToken: "token"})
+	err := uc.Chat.ReadOnlyConnect(ctx, nil, "AAAAAA", &ChatToken{AccessToken: "token"})
 	if err == nil {
 		t.Fatal("expected error for cancelled context, got nil")
 	}
@@ -56,7 +56,7 @@ func Test_ChatConnect_EmptyLiveID(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := uc.Chat.ReadOnlyConnect(ctx, "", &ChatToken{AccessToken: "some_token"})
+	err := uc.Chat.ReadOnlyConnect(ctx, nil, "", &ChatToken{AccessToken: "some_token"})
 	if err == nil {
 		t.Fatal("expected error for empty liveID, got nil")
 	}

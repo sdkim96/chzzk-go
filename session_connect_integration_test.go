@@ -22,7 +22,7 @@ func Test_SessionConnect_WithClientAuth_Integration(t *testing.T) {
 	defer cancel()
 
 	c := New(nil).WithClientAuth(clientID, clientSecret)
-	sessionURL, err := c.Session.AuthClient(ctx, nil)
+	sessionURL, err := c.Session.AuthClient(ctx)
 	if err != nil {
 		t.Fatalf("AuthClient() error = %v", err)
 	}
@@ -69,7 +69,7 @@ func Test_SessionConnect_WithAPIKey_Integration(t *testing.T) {
 	defer cancel()
 
 	c := New(nil).WithAPIKey(apiKey)
-	sessionURL, err := c.Session.AuthUser(ctx, nil)
+	sessionURL, err := c.Session.AuthUser(ctx)
 	if err != nil {
 		t.Fatalf("AuthUser() error = %v", err)
 	}

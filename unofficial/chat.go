@@ -26,22 +26,33 @@ type ChatService struct {
 	uc *Client
 }
 
-type chatState struct {
-	op string
-
-	// channels
-	recv chan []byte
-	send chan []byte
-
-	liveID string
-	token  *ChatToken
-	sid    string // session ID from CmdConnected response
-}
-
 // ChatToken contains the access token and extra token returned by the Chzzk chat API.
 type ChatToken struct {
 	AccessToken string
 	ExtraToken  string
+}
+
+type chatState struct {
+
+	// The operation mode: "r" for read-only, "rw" for read-write.
+	op string
+
+	// The channels.
+	//
+	// TODO: directions are inverted. The library is the sender on recv and the
+	// receiver on send, so these must become `recv chan<- []byte` and
+	// `send <-chan []byte`, along with the ReadOnlyConnect/Connect signatures.
+	// This typechecks today only because make(chan []byte) converts to either
+	// direction at the call site.
+	recv <-chan []byte
+	send chan<- []byte
+
+	// Identities
+	liveID string
+	token  *ChatToken
+
+	// The session ID returned by the server after a successful handshake.
+	sid string
 }
 
 // Token retrieves the access token and extra token for a chat channel.
@@ -56,9 +67,16 @@ func (s *ChatService) Token(ctx context.Context, liveID string) (*ChatToken, err
 // The connection is closed when ctx is cancelled or the recv channel is closed.
 //   - protocol: wss://kr-ss{1-9}.chat.naver.com/chat
 //   - credential: none
-func (s *ChatService) ReadOnlyConnect(ctx context.Context, liveID string, token *ChatToken) (<-chan []byte, error) {
-	recv, _, _, err := s.connect(ctx, "r", liveID, token)
-	return recv, err
+func (s *ChatService) ReadOnlyConnect(ctx context.Context, recv <-chan []byte, liveID string, token *ChatToken) error {
+	state := &chatState{
+		op:     "r",
+		recv:   recv,
+		send:   nil,
+		liveID: liveID,
+		token:  token,
+		sid:    "",
+	}
+	return s.connect(ctx, state)
 }
 
 // Connect establishes a bidirectional WebSocket connection to a Chzzk chat channel.
@@ -67,90 +85,56 @@ func (s *ChatService) ReadOnlyConnect(ctx context.Context, liveID string, token 
 // The connection is closed when ctx is cancelled.
 //   - protocol: wss://kr-ss{1-9}.chat.naver.com/chat
 //   - credential: [UnofficialChzzk.WithCookie]
-func (s *ChatService) Connect(ctx context.Context, liveID string, token *ChatToken) (recv <-chan []byte, send chan<- []byte, sid string, err error) {
+func (s *ChatService) Connect(ctx context.Context, recv <-chan []byte, send chan<- []byte, liveID string, token *ChatToken) error {
 	if s.uc.uid == "" {
-		return nil, nil, "", fmt.Errorf("chat: Connect requires authentication. use WithCookie first, or use ReadOnlyConnect")
+		return fmt.Errorf("chat: Connect requires authentication. use WithCookie first, or use ReadOnlyConnect")
 	}
-	return s.connect(ctx, "rw", liveID, token)
-}
-
-func (s *ChatService) token(ctx context.Context, liveID string) (*ChatToken, error) {
-	u, err := url.JoinPath(NaverGameBaseURL, "nng_main", "v1", "chats", "access-token")
-	if err != nil {
-		return nil, err
-	}
-	pURL, err := url.Parse(u)
-	if err != nil {
-		return nil, err
-	}
-	q := pURL.Query()
-	q.Set("channelId", liveID)
-	q.Set("chatType", "STREAMING")
-	pURL.RawQuery = q.Encode()
-
-	type AccessTokenResp struct {
-		chzzk.Response
-		Content struct {
-			AccessToken string `json:"accessToken"`
-			ExtraToken  string `json:"extraToken"`
-		} `json:"content"`
-	}
-	resp, err := chzzkHttp.Get[AccessTokenResp](ctx, s.uc.httpClient, pURL.String())
-	if err != nil {
-		return nil, err
-	}
-	if err := chzzk.MightError(resp.Response); err != nil {
-		return nil, err
-	}
-	return &ChatToken{
-		AccessToken: resp.Content.AccessToken,
-		ExtraToken:  resp.Content.ExtraToken,
-	}, nil
-}
-
-func (s *ChatService) connect(ctx context.Context, op string, liveID string, token *ChatToken) (<-chan []byte, chan<- []byte, string, error) {
-	if liveID == "" {
-		return nil, nil, "", fmt.Errorf("chat: liveID cannot be empty")
-	}
-	wsURL := fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(liveID))
-
-	conn := socket.NewConn(s.uc.httpClient)
-	if err := conn.Dial(ctx, wsURL); err != nil {
-		return nil, nil, "", fmt.Errorf("chat: dial failed: %w", err)
-	}
-
-	internalRecv := make(chan []byte)
-	internalSend := make(chan []byte, 1)
-
-	// Run the WebSocket loop in a goroutine; it blocks until ctx is cancelled or an error occurs.
-	loopErrCh := make(chan error, 1)
-	go func() {
-		loopErrCh <- conn.Loop(ctx, internalRecv, internalSend)
-		close(internalRecv)
-	}()
-
-	st := chatState{
-		op:     op,
-		recv:   internalRecv,
-		send:   internalSend,
+	state := &chatState{
+		op:     "rw",
+		recv:   recv,
+		send:   send,
 		liveID: liveID,
 		token:  token,
+		sid:    "",
 	}
-
-	if err := s.handshake(ctx, &st); err != nil {
-		conn.Close(ctx, websocket.StatusNormalClosure, "handshake failed")
-		return nil, nil, "", err
-	}
-
-	outRecv := make(chan []byte)
-	outSend := make(chan []byte)
-
-	go s.loop(ctx, conn, outRecv, outSend, st, loopErrCh)
-
-	return outRecv, outSend, st.sid, nil
+	return s.connect(ctx, state)
 }
 
-func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
+func (s *ChatService) connect(ctx context.Context, state *chatState) error {
+	if state.liveID == "" {
+		return fmt.Errorf("chat: liveID cannot be empty")
+	}
+
+	conn := socket.NewConn(s.uc.httpClient)
+	if err := conn.Dial(ctx, fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(state.liveID))); err != nil {
+		return fmt.Errorf("chat: dial failed: %w", err)
+	}
+
+	if err := s.handshake(ctx, conn, state); err != nil {
+		conn.Close(websocket.StatusNormalClosure, "handshake failed")
+		return err
+	}
+
+	// TODO: neither pump is wired up, so connect currently dials and returns
+	// without doing any I/O. Start conn.ReadLoop and conn.WriteLoop under an
+	// errgroup the way SessionService.connect does, with the read path folded
+	// in from s.loop below, and block on g.Wait() instead of returning nil.
+
+	// Write path
+	if state.op == "rw" {
+		go func() {
+
+		}()
+	}
+
+	go func() {
+
+	}()
+
+	return nil
+}
+
+func (s *ChatService) handshake(ctx context.Context, conn *socket.Conn, st *chatState) error {
 	type wsRequest struct {
 		Bdy   any    `json:"bdy"`
 		Cid   string `json:"cid"`
@@ -194,15 +178,15 @@ func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
 			Auth:    auth,
 		},
 	}
-	connectBytes, err := json.Marshal(connectReq)
+
+	// TODO: the marshaled frame is discarded, so cmd 100 never reaches the
+	// server and the loop below blocks until ctx expires. Write it to conn
+	// (or hand it to the send path) before waiting for cmd 10100.
+	_, err := json.Marshal(connectReq)
 	if err != nil {
 		return fmt.Errorf("chat: marshal connect: %w", err)
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case st.send <- connectBytes:
-	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -223,6 +207,10 @@ func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
 	}
 }
 
+// TODO: dead code. Nothing calls this, and loopErrCh no longer has a producer
+// now that socket.Conn.Loop is split into ReadLoop/WriteLoop. Fold the cmd
+// dispatch (ping/pong, 93101/15101 messageList unwrapping) into the read path
+// in connect and delete the rest.
 func (s *ChatService) loop(ctx context.Context, conn *socket.Conn, recv chan<- []byte, send <-chan []byte, st chatState, loopErrCh <-chan error) {
 	type wsResponse struct {
 		Bdy json.RawMessage `json:"bdy"`
@@ -233,7 +221,7 @@ func (s *ChatService) loop(ctx context.Context, conn *socket.Conn, recv chan<- [
 		Ver string `json:"ver"`
 	}
 
-	defer conn.Close(ctx, websocket.StatusNormalClosure, "closing connection")
+	defer conn.Close(websocket.StatusNormalClosure, "closing connection")
 	defer close(recv)
 
 	for {
@@ -289,6 +277,40 @@ func (s *ChatService) loop(ctx context.Context, conn *socket.Conn, recv chan<- [
 			}
 		}
 	}
+}
+
+func (s *ChatService) token(ctx context.Context, liveID string) (*ChatToken, error) {
+	u, err := url.JoinPath(NaverGameBaseURL, "nng_main", "v1", "chats", "access-token")
+	if err != nil {
+		return nil, err
+	}
+	pURL, err := url.Parse(u)
+	if err != nil {
+		return nil, err
+	}
+	q := pURL.Query()
+	q.Set("channelId", liveID)
+	q.Set("chatType", "STREAMING")
+	pURL.RawQuery = q.Encode()
+
+	type AccessTokenResp struct {
+		chzzk.Response
+		Content struct {
+			AccessToken string `json:"accessToken"`
+			ExtraToken  string `json:"extraToken"`
+		} `json:"content"`
+	}
+	resp, err := chzzkHttp.Get[AccessTokenResp](ctx, s.uc.httpClient, pURL.String())
+	if err != nil {
+		return nil, err
+	}
+	if err := chzzk.MightError(resp.Response); err != nil {
+		return nil, err
+	}
+	return &ChatToken{
+		AccessToken: resp.Content.AccessToken,
+		ExtraToken:  resp.Content.ExtraToken,
+	}, nil
 }
 
 func chatServerID(chatChannelID string) int {

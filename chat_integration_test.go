@@ -74,7 +74,7 @@ func Test_Chat_UpdateSettings_WithAPIKey(t *testing.T) {
 		Kind:          ChatAvailableForFollower,
 		AuthorityMode: Ptr(AuthorityModeAll),
 		FollowerSetting: &ChatFollowerSetting{
-			MinFollowerMinute:              5,
+			MinFollowerMinute:             5,
 			AllowSubscriberInFollowerMode: true,
 		},
 		SlowModeSec: Ptr(3),
@@ -126,7 +126,7 @@ func Test_Chat_BlindMessage_WithAPIKey(t *testing.T) {
 	}
 
 	// get chat channel id from session
-	session, err := c.Session.AuthUser(context.Background(), nil)
+	session, err := c.Session.AuthUser(context.Background())
 	if err != nil {
 		t.Fatalf("AuthUser failed: %v", err)
 	}
