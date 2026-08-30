@@ -27,7 +27,7 @@ const (
 	ChatAvailableForManager    ChatAvailableKind = "manager"
 	ChatAvailableForSubscriber ChatAvailableKind = "subscriber"
 	AuthorityModeAll           AuthorityKind     = "all"
-	AuthorityModeRealName     AuthorityKind     = "realName"
+	AuthorityModeRealName      AuthorityKind     = "realName"
 )
 
 var ErrInvalidNoticeKind = errors.New("chzzk: invalid notice kind")
@@ -50,7 +50,7 @@ type ChatSettings struct {
 }
 
 type ChatFollowerSetting struct {
-	MinFollowerMinute              int
+	MinFollowerMinute             int
 	AllowSubscriberInFollowerMode bool
 }
 
@@ -208,7 +208,7 @@ func (s *ChatService) settings(ctx context.Context) (*ChatSettings, error) {
 	settings := &ChatSettings{
 		Kind: cagToCAK(resp.Content.ChatAvailableGroup),
 		FollowerSetting: &ChatFollowerSetting{
-			MinFollowerMinute:              resp.Content.MinFollowerMinute,
+			MinFollowerMinute:             resp.Content.MinFollowerMinute,
 			AllowSubscriberInFollowerMode: resp.Content.AllowSubscriberInFollowerMode,
 		},
 		AuthorityMode: Ptr(cacToAK(resp.Content.ChatAvailableCondition)),

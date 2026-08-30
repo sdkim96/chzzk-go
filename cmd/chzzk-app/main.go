@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/bubbles/v2/textinput"
 )
 
 type Model struct {
@@ -15,6 +15,7 @@ type Model struct {
 
 type state struct {
 	update int
+	status int
 	prompt textinput.Model
 }
 
@@ -28,7 +29,7 @@ func (s *state) isSystemMode() bool {
 func NewModel() Model {
 	return Model{
 		title: "Chzzk Viewer",
-		state: &state{prompt: ""},
+		state: &state{prompt: textinput.New()},
 	}
 }
 
@@ -41,9 +42,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	kpMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && isEOF(kpMsg) {
 		return m, tea.Quit
-	}
-	if ok && m.input.Value() {
-
 	}
 	return m, nil
 }
