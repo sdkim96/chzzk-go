@@ -39,6 +39,15 @@ func (c *Conn) Dial(ctx context.Context, url string) error {
 	return nil
 }
 
+func (c *Conn) Read(ctx context.Context) ([]byte, error) {
+	_, msg, err := c.Conn.Read(ctx)
+	return msg, err
+}
+
+func (c *Conn) Write(ctx context.Context, msg []byte) error {
+	return c.Conn.Write(ctx, ws.MessageText, msg)
+}
+
 func (c *Conn) ReadLoop(ctx context.Context, recv chan<- []byte) error {
 	if !c.IsDialed() {
 		return ErrNotDialed
@@ -50,14 +59,14 @@ func (c *Conn) ReadLoop(ctx context.Context, recv chan<- []byte) error {
 	// close channels who sends data.
 	defer close(recv)
 	for {
-		_, msg, err := c.Conn.Read(ctx)
+		msg, err := c.Read(ctx)
 		if err != nil {
 			return err
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case recv <- msg:
+		case recv <- msg: // Pump up
 		}
 
 	}
@@ -78,7 +87,7 @@ func (c *Conn) WriteLoop(ctx context.Context, send <-chan []byte) error {
 			if !ok {
 				return nil // The writer should close it
 			}
-			if err := c.Conn.Write(ctx, ws.MessageText, msg); err != nil {
+			if err := c.Write(ctx, msg); err != nil {
 				return err
 			}
 		}
