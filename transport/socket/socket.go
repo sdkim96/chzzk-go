@@ -16,7 +16,8 @@ type Conn struct {
 
 var (
 	ErrNotDialed = fmt.Errorf("socket: not dialed. Call Dial() before Start() or Close()")
-	ErrNilCh     = fmt.Errorf("socket: send channel or receive channel cannot be nil")
+	ErrNilRecvCh = fmt.Errorf("socket: receive channel cannot be nil")
+	ErrNilSendCh = fmt.Errorf("socket: send channel cannot be nil")
 )
 
 func (c *Conn) IsDialed() bool {
@@ -28,71 +29,6 @@ func NewConn(c *http.Client) *Conn {
 }
 
 func (c *Conn) Dial(ctx context.Context, url string) error {
-	return c.dial(ctx, url)
-}
-
-func (c *Conn) Loop(ctx context.Context, recv chan<- []byte, send <-chan []byte) error {
-	if send == nil || recv == nil {
-		return ErrNilCh
-	}
-	if !c.IsDialed() {
-		return ErrNotDialed
-	}
-	return c.loop(ctx, recv, send)
-}
-
-func (c *Conn) Close(ctx context.Context, code ws.StatusCode, reason string) error {
-	if !c.IsDialed() {
-		return ErrNotDialed
-	}
-	return c.close(ctx, code, reason)
-}
-
-func (c *Conn) loop(ctx context.Context, recv chan<- []byte, send <-chan []byte) error {
-	ctx2, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	errCh := make(chan error, 2)
-	go func() {
-		for {
-			_, msg, err := c.Conn.Read(ctx2)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			select {
-			case <-ctx2.Done():
-				return
-			case recv <- msg:
-			}
-		}
-	}()
-	go func() {
-		for {
-			select {
-			case <-ctx2.Done():
-				return
-			case data, ok := <-send:
-				if !ok {
-					return
-				}
-				err := c.Conn.Write(ctx2, ws.MessageText, data)
-				if err != nil {
-					errCh <- err
-					return
-				}
-			}
-		}
-	}()
-	select {
-	case <-ctx2.Done():
-		return ctx2.Err()
-	case err := <-errCh:
-		return err
-	}
-}
-
-func (c *Conn) dial(ctx context.Context, url string) error {
 	cn, _, err := ws.Dial(ctx, url, &ws.DialOptions{
 		HTTPClient: c.httpClient,
 	})
@@ -103,7 +39,65 @@ func (c *Conn) dial(ctx context.Context, url string) error {
 	return nil
 }
 
-func (c *Conn) close(ctx context.Context, code ws.StatusCode, reason string) error {
+func (c *Conn) Read(ctx context.Context) ([]byte, error) {
+	_, msg, err := c.Conn.Read(ctx)
+	return msg, err
+}
+
+func (c *Conn) Write(ctx context.Context, msg []byte) error {
+	return c.Conn.Write(ctx, ws.MessageText, msg)
+}
+
+func (c *Conn) ReadLoop(ctx context.Context, recv chan<- []byte) error {
+	if !c.IsDialed() {
+		return ErrNotDialed
+	}
+	if recv == nil {
+		return ErrNilRecvCh
+	}
+
+	// close channels who sends data.
+	defer close(recv)
+	for {
+		msg, err := c.Read(ctx)
+		if err != nil {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case recv <- msg: // Pump up
+		}
+
+	}
+}
+
+func (c *Conn) WriteLoop(ctx context.Context, send <-chan []byte) error {
+	if !c.IsDialed() {
+		return ErrNotDialed
+	}
+	if send == nil {
+		return ErrNilSendCh
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-send:
+			if !ok {
+				return nil // The writer should close it
+			}
+			if err := c.Write(ctx, msg); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (c *Conn) Close(code ws.StatusCode, reason string) error {
+	if !c.IsDialed() {
+		return ErrNotDialed
+	}
 	err := c.Conn.Close(code, reason)
 	c.Conn = nil
 	return err

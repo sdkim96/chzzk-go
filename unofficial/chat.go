@@ -2,7 +2,6 @@ package unofficial
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/sdkim96/chzzk-go"
 	chzzkHttp "github.com/sdkim96/chzzk-go/transport/http"
 	"github.com/sdkim96/chzzk-go/transport/socket"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -19,6 +19,8 @@ const (
 	cmdConnected  = 10100 // connection established
 	cmdRecentChat = 15101 // recent chat history
 	cmdChat       = 93101 // live chat message
+	cmdSend       = 3101  // outgoing chat message
+	cmdSendAck    = 13101 // acknowledgement of an outgoing chat message
 )
 
 // ChatService serves an API for connecting to the unofficial Chat WebSocket API of Chzzk.
@@ -26,22 +28,40 @@ type ChatService struct {
 	uc *Client
 }
 
-type chatState struct {
-	op string
-
-	// channels
-	recv chan []byte
-	send chan []byte
-
-	liveID string
-	token  *ChatToken
-	sid    string // session ID from CmdConnected response
-}
-
 // ChatToken contains the access token and extra token returned by the Chzzk chat API.
 type ChatToken struct {
 	AccessToken string
 	ExtraToken  string
+}
+
+type chatState struct {
+
+	// The channels.
+	recv chan<- []byte
+	send <-chan []byte
+
+	// Identities
+	liveID string
+	token  *ChatToken
+
+	// The session ID returned by the server after a successful handshake.
+	sid string
+	// The counter for outgoing messages.
+	tid int
+}
+
+func (st *chatState) Sid(sid string) {
+	st.sid = sid
+}
+func (st *chatState) IncrementTid() {
+	st.tid++
+}
+
+func (st *chatState) Op() string {
+	if st.send == nil {
+		return "r"
+	}
+	return "rw"
 }
 
 // Token retrieves the access token and extra token for a chat channel.
@@ -51,27 +71,77 @@ func (s *ChatService) Token(ctx context.Context, liveID string) (*ChatToken, err
 	return s.token(ctx, liveID)
 }
 
-// ReadOnlyConnect establishes a read-only WebSocket connection to a Chzzk chat channel.
-// No authentication is required. The recv channel receives incoming chat messages as raw bytes.
-// The connection is closed when ctx is cancelled or the recv channel is closed.
+// ReadOnlyConnect establishes a read-only WebSocket connection to a Chzzk chat
+// channel. No authentication is required.
+//
+// It blocks until the connection ends, delivering each batch of incoming
+// messages to recv as the raw JSON array the server sent. Ping/pong and every
+// other protocol frame are handled internally and never reach recv.
+//
+// recv is closed when ReadOnlyConnect returns, so the caller must not close it.
+// Cancel ctx to shut the connection down; the returned error is ctx.Err() in that
+// case, or the underlying failure otherwise.
 //   - protocol: wss://kr-ss{1-9}.chat.naver.com/chat
 //   - credential: none
-func (s *ChatService) ReadOnlyConnect(ctx context.Context, liveID string, token *ChatToken) (<-chan []byte, error) {
-	recv, _, _, err := s.connect(ctx, "r", liveID, token)
-	return recv, err
+func (s *ChatService) ReadOnlyConnect(ctx context.Context, recv chan<- []byte, liveID string, token *ChatToken) error {
+	state := &chatState{
+		recv:   recv,
+		send:   nil,
+		liveID: liveID,
+		token:  token,
+		sid:    "",
+	}
+	return s.connect(ctx, state)
 }
 
-// Connect establishes a bidirectional WebSocket connection to a Chzzk chat channel.
-// Returns recv for incoming messages, send for outgoing messages, and the session ID.
-// The session ID (sid) must be included in outgoing chat messages (cmd 3101).
-// The connection is closed when ctx is cancelled.
+// Connect establishes a bidirectional WebSocket connection to a Chzzk chat
+// channel. It blocks until the connection ends.
+//
+// recv behaves as in [ChatService.ReadOnlyConnect] and is closed on return.
+//
+// Each value sent on send becomes the bdy of one outgoing cmd 3101 frame; the
+// envelope, including the session ID and the tid counter, is built internally.
+// The server expects that bdy to hold msg, msgTypeCode, msgTime and extras, where
+// extras is a JSON string:
+//
+//	extras, _ := json.Marshal(map[string]any{
+//		"chatType":           "STREAMING",
+//		"emojis":             map[string]string{},
+//		"osType":             "PC",
+//		"streamingChannelId": channelID,   // the channel ID, not the live ID
+//		"extraToken":         token.ExtraToken,
+//	})
+//	body, _ := json.Marshal(map[string]any{
+//		"msg":         "hello",
+//		"msgTypeCode": 1,
+//		"msgTime":     time.Now().UnixMilli(),
+//		"extras":      string(extras),
+//	})
+//	send <- body
+//
+// extraToken is required. Without it the server discards the frame and reports
+// nothing on the wire at all — no rejection, no ack, no error — so the message
+// simply never appears. streamingChannelId is likewise the channel ID passed to
+// [LiveService.ID], not the live ID passed to this method.
+//
+// A send the server does reject surfaces as an error from this method, decoded
+// from its cmd 13101 acknowledgement, which ends the connection.
+//
+// Closing send shuts the connection down cleanly. Cancelling ctx does the same.
 //   - protocol: wss://kr-ss{1-9}.chat.naver.com/chat
-//   - credential: [UnofficialChzzk.WithCookie]
-func (s *ChatService) Connect(ctx context.Context, liveID string, token *ChatToken) (recv <-chan []byte, send chan<- []byte, sid string, err error) {
+//   - credential: [Client.WithCookie]
+func (s *ChatService) Connect(ctx context.Context, recv chan<- []byte, send <-chan []byte, liveID string, token *ChatToken) error {
 	if s.uc.uid == "" {
-		return nil, nil, "", fmt.Errorf("chat: Connect requires authentication. use WithCookie first, or use ReadOnlyConnect")
+		return fmt.Errorf("chat: Connect requires authentication. use WithCookie first, or use ReadOnlyConnect")
 	}
-	return s.connect(ctx, "rw", liveID, token)
+	state := &chatState{
+		recv:   recv,
+		send:   send,
+		liveID: liveID,
+		token:  token,
+		sid:    "",
+	}
+	return s.connect(ctx, state)
 }
 
 func (s *ChatService) token(ctx context.Context, liveID string) (*ChatToken, error) {
@@ -108,186 +178,133 @@ func (s *ChatService) token(ctx context.Context, liveID string) (*ChatToken, err
 	}, nil
 }
 
-func (s *ChatService) connect(ctx context.Context, op string, liveID string, token *ChatToken) (<-chan []byte, chan<- []byte, string, error) {
-	if liveID == "" {
-		return nil, nil, "", fmt.Errorf("chat: liveID cannot be empty")
+func (s *ChatService) connect(ctx context.Context, state *chatState) error {
+	if state.liveID == "" {
+		return fmt.Errorf("chat: liveID cannot be empty")
 	}
-	wsURL := fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(liveID))
 
 	conn := socket.NewConn(s.uc.httpClient)
-	if err := conn.Dial(ctx, wsURL); err != nil {
-		return nil, nil, "", fmt.Errorf("chat: dial failed: %w", err)
+	if err := conn.Dial(ctx, fmt.Sprintf("wss://kr-ss%d.chat.naver.com/chat", chatServerID(state.liveID))); err != nil {
+		return fmt.Errorf("chat: dial failed: %w", err)
 	}
 
-	internalRecv := make(chan []byte)
-	internalSend := make(chan []byte, 1)
-
-	// Run the WebSocket loop in a goroutine; it blocks until ctx is cancelled or an error occurs.
-	loopErrCh := make(chan error, 1)
-	go func() {
-		loopErrCh <- conn.Loop(ctx, internalRecv, internalSend)
-		close(internalRecv)
-	}()
-
-	st := chatState{
-		op:     op,
-		recv:   internalRecv,
-		send:   internalSend,
-		liveID: liveID,
-		token:  token,
+	if err := s.handshake(ctx, conn, state); err != nil {
+		conn.Close(websocket.StatusNormalClosure, "handshake failed")
+		return err
 	}
+	defer conn.Close(websocket.StatusNormalClosure, "Connection closed")
 
-	if err := s.handshake(ctx, &st); err != nil {
-		conn.Close(ctx, websocket.StatusNormalClosure, "handshake failed")
-		return nil, nil, "", err
+	// Start tossing around messages!
+	g, gctx := errgroup.WithContext(ctx)
+
+	// 1. reads.
+	g.Go(func() error {
+		defer close(state.recv)
+		for {
+			data, err := conn.Read(gctx)
+			if err != nil {
+				return err
+			}
+			cmd, bdy, err := decodeFrame(data)
+			if err != nil {
+				return err
+			}
+			switch cmd {
+			case cmdPing:
+				pong, err := encodePong()
+				if err != nil {
+					return fmt.Errorf("chat: encode pong: %w", err)
+				}
+				if err := conn.Write(gctx, pong); err != nil {
+					return fmt.Errorf("chat: write pong failed: %w", err)
+				}
+			case cmdSendAck:
+				// The only report of a rejected send: the server drops a bad
+				// frame silently otherwise.
+				if err := decodeSendAck(data); err != nil {
+					return err
+				}
+			case cmdChat, cmdRecentChat:
+				messages, err := decodeMessageList(bdy)
+				if err != nil {
+					return err
+				}
+				if messages == nil {
+					continue
+				}
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				case state.recv <- messages:
+				}
+			}
+		}
+	})
+
+	// 2. If the connection is bidirectional, start a goroutine to read from the send channel and write to the WebSocket.
+	if state.Op() == "rw" && state.sid != "" {
+		g.Go(func() error {
+			for {
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				case body, ok := <-state.send:
+					if !ok {
+						// The caller closed send: a clean shutdown, not a failure.
+						return nil
+					}
+					frame, err := state.encodeSend(body)
+					if err != nil {
+						return err
+					}
+					if err := conn.Write(gctx, frame); err != nil {
+						return fmt.Errorf("chat: write failed: %w", err)
+					}
+				}
+			}
+		})
 	}
-
-	outRecv := make(chan []byte)
-	outSend := make(chan []byte)
-
-	go s.loop(ctx, conn, outRecv, outSend, st, loopErrCh)
-
-	return outRecv, outSend, st.sid, nil
+	return g.Wait()
 }
 
-func (s *ChatService) handshake(ctx context.Context, st *chatState) error {
-	type wsRequest struct {
-		Bdy   any    `json:"bdy"`
-		Cid   string `json:"cid"`
-		Cmd   int    `json:"cmd"`
-		Svcid string `json:"svcid"`
-		Tid   int    `json:"tid"`
-		Ver   string `json:"ver"`
-	}
-	type wsResponse struct {
-		Cmd int `json:"cmd"`
-		Bdy struct {
-			Sid string `json:"sid"`
-		} `json:"bdy"`
-	}
-	type connectBody struct {
-		Uid     any    `json:"uid"`
-		DevType int    `json:"devType"`
-		AccTkn  string `json:"accTkn"`
-		Auth    string `json:"auth"`
-	}
-
+func (s *ChatService) handshake(ctx context.Context, conn *socket.Conn, st *chatState) error {
 	var (
 		uid  any    = nil
 		auth string = "READ"
 	)
-	if st.op == "rw" {
+	if st.Op() == "rw" {
 		uid = s.uc.uid
 		auth = "SEND"
 	}
 
-	connectReq := wsRequest{
-		Cmd:   cmdConnect,
-		Tid:   1,
-		Cid:   st.liveID,
-		Svcid: "game",
-		Ver:   "2",
-		Bdy: connectBody{
-			Uid:     uid,
-			DevType: 2001,
-			AccTkn:  st.token.AccessToken,
-			Auth:    auth,
-		},
-	}
-	connectBytes, err := json.Marshal(connectReq)
+	req, err := st.encodeConnect(uid, auth)
 	if err != nil {
-		return fmt.Errorf("chat: marshal connect: %w", err)
+		return fmt.Errorf("chat: encode connect: %w", err)
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case st.send <- connectBytes:
+	if err := conn.Write(ctx, req); err != nil {
+		return fmt.Errorf("chat: write connect: %w", err)
 	}
+
+	// Frames arriving before the ack are dropped: the server sends nothing the
+	// caller needs until the session exists.
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case data, ok := <-st.recv:
-			if !ok {
-				return fmt.Errorf("chat: connection closed before handshake")
-			}
-			var resp wsResponse
-			if err := json.Unmarshal(data, &resp); err != nil {
-				return fmt.Errorf("chat: unmarshal handshake: %w", err)
-			}
-			if resp.Cmd == cmdConnected {
-				st.sid = resp.Bdy.Sid
-				return nil
-			}
+		data, err := conn.Read(ctx)
+		if err != nil {
+			return fmt.Errorf("chat: read handshake response: %w", err)
 		}
-	}
-}
-
-func (s *ChatService) loop(ctx context.Context, conn *socket.Conn, recv chan<- []byte, send <-chan []byte, st chatState, loopErrCh <-chan error) {
-	type wsResponse struct {
-		Bdy json.RawMessage `json:"bdy"`
-		Cmd int             `json:"cmd"`
-	}
-	type wsRequest struct {
-		Cmd int    `json:"cmd"`
-		Ver string `json:"ver"`
-	}
-
-	defer conn.Close(ctx, websocket.StatusNormalClosure, "closing connection")
-	defer close(recv)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-loopErrCh:
-			return
-		case data, ok := <-st.recv:
-			if !ok {
-				return
-			}
-			var resp wsResponse
-			if err := json.Unmarshal(data, &resp); err != nil {
-				return
-			}
-			switch resp.Cmd {
-			case cmdPing:
-				pong, _ := json.Marshal(wsRequest{Cmd: cmdPong, Ver: "2"})
-				select {
-				case <-ctx.Done():
-					return
-				case st.send <- pong:
-				}
-			case cmdChat, cmdRecentChat:
-				var wrapped struct {
-					MessageList json.RawMessage `json:"messageList"`
-				}
-				if err := json.Unmarshal(resp.Bdy, &wrapped); err != nil {
-					select {
-					case <-ctx.Done():
-						return
-					case recv <- resp.Bdy:
-					}
-					continue
-				}
-				if len(wrapped.MessageList) > 0 {
-					select {
-					case <-ctx.Done():
-						return
-					case recv <- wrapped.MessageList:
-					}
-				}
-			}
-		case msg, ok := <-send:
-			if !ok {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case st.send <- msg:
-			}
+		cmd, bdy, err := decodeFrame(data)
+		if err != nil {
+			return err
 		}
+		if cmd != cmdConnected {
+			continue
+		}
+		sid, err := decodeConnected(bdy)
+		if err != nil {
+			return err
+		}
+		st.Sid(sid)
+		return nil
 	}
 }
 

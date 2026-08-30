@@ -19,7 +19,7 @@ type SessionService struct {
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined
 //
 // [Get]: https://google.aip.dev/131
-func (s *SessionService) AuthClient(ctx context.Context, wsFunc func(string) (string, error)) (string, error) {
+func (s *SessionService) AuthClient(ctx context.Context) (string, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth", "client")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
@@ -28,15 +28,10 @@ func (s *SessionService) AuthClient(ctx context.Context, wsFunc func(string) (st
 	if err != nil {
 		return "", err
 	}
-	if wsFunc != nil {
-		return wsFunc(sessionURL)
-	}
 	return asWebSocketURL(sessionURL)
 }
 
 // AuthUser returns a URL for connecting to the Chzzk session service via user credentials.
-// wsFunc is an optional function that can be provided to customize the WebSocket connection URL.
-// If wsFunc is nil, the default WebSocket URL will be returned.
 //
 //   - pattern: [Get]
 //   - credential: [Chzzk.WithAPIKey]
@@ -44,7 +39,7 @@ func (s *SessionService) AuthClient(ctx context.Context, wsFunc func(string) (st
 // Check the documentation for more details: https://chzzk.gitbook.io/chzzk/chzzk-api/session#undefined-1
 //
 // [Get]: https://google.aip.dev/131
-func (s *SessionService) AuthUser(ctx context.Context, wsFunc func(string) (string, error)) (string, error) {
+func (s *SessionService) AuthUser(ctx context.Context) (string, error) {
 	u, err := url.JoinPath(BaseURL, OpenV1, prefixSession, "auth")
 	if err != nil {
 		return "", fmt.Errorf("chzzk: failed to build URL: %w", err)
@@ -53,15 +48,11 @@ func (s *SessionService) AuthUser(ctx context.Context, wsFunc func(string) (stri
 	if err != nil {
 		return "", err
 	}
-	if wsFunc != nil {
-		return wsFunc(sessionURL)
-	}
 	return asWebSocketURL(sessionURL)
 }
 
 // SubscribeChat subscribes to chat events for the given session key.
-// wsFunc is an optional function that can be provided to customize the WebSocket connection URL.
-// If wsFunc is nil, the default WebSocket URL will be returned.
+// sk is the session key obtained from AuthClient or AuthUser.
 //
 //   - pattern: [Create]
 //   - credential: [Chzzk.WithClientAuth] or [Chzzk.WithAPIKey]

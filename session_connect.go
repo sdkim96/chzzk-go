@@ -7,6 +7,7 @@ import (
 
 	ws "github.com/coder/websocket"
 	"github.com/sdkim96/chzzk-go/transport/socket"
+	"golang.org/x/sync/errgroup"
 )
 
 // This file provides a Go implementation of the Socket.IO v2 (Engine.IO v3) protocol.
@@ -92,55 +93,83 @@ func (s *SessionService) Connect(ctx context.Context, u string, h map[string]Han
 
 func (s *SessionService) connect(ctx context.Context, u string, h map[string]Handler) error {
 	conn := socket.NewConn(s.c.httpClient)
-	defer conn.Close(ctx, ws.StatusNormalClosure, "session connect done")
+	defer conn.Close(ws.StatusNormalClosure, "session connect done")
 	if err := conn.Dial(ctx, u); err != nil {
 		return fmt.Errorf("failed to dial: %w", err)
 	}
 	if err := handshake(ctx, conn); err != nil {
 		return fmt.Errorf("handshake failed: %w", err)
 	}
+
 	recv := make(chan []byte)
 	send := make(chan []byte)
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- conn.Loop(ctx, recv, send)
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-errCh:
-			return fmt.Errorf("loop error: %w", err)
-		case msg, ok := <-recv:
-			if !ok {
-				return fmt.Errorf("receive channel closed")
-			}
-			p, err := decode(msg)
-			if err != nil {
-				return fmt.Errorf("failed to decode packet: %w", err)
-			}
-			if p.isEmpty() {
-				continue
-			}
-			if p.EnginePacketType == socketIOPing {
-				b, err := encode(newPacket(socketIOPong, socketIOSocketNone, nil))
-				if err != nil {
-					return fmt.Errorf("socketio: encode failed: %w", err)
+
+	// Assume that the connect function is leaf function
+	g, gctx := errgroup.WithContext(ctx)
+
+	// The main Loop
+	g.Go(func() error {
+		defer close(send)
+		for {
+			select {
+			case <-gctx.Done():
+				return gctx.Err()
+
+			// every message recieved from the server,
+			case msg, ok := <-recv:
+				if !ok {
+					return fmt.Errorf("receive channel closed")
 				}
-				send <- b
-				continue
-			}
-			ev, data, err := p.event()
-			if err != nil {
-				continue
-			}
-			if handler, ok := h[ev]; ok {
-				if err := handler(data); err != nil {
-					return fmt.Errorf("socketio: handler failed: %w", err)
+
+				// check the validity
+				p, err := decode(msg)
+				if err != nil {
+					return fmt.Errorf("failed to decode packet: %w", err)
+				}
+				if p.isEmpty() {
+					continue
+				}
+
+				// If ping, send pong back.
+				if p.EnginePacketType == socketIOPing {
+					b, err := encode(newPacket(socketIOPong, socketIOSocketNone, nil))
+					if err != nil {
+						return fmt.Errorf("socketio: encode failed: %w", err)
+					}
+
+					// deadlock prevention;
+					// if the WriteLoop terminates before the send channel is closed,
+					// the send channel will be blocked forever, which hangs the entire program.
+					select {
+					case <-gctx.Done():
+						return gctx.Err()
+					case send <- b:
+					}
+					continue
+				}
+
+				// If the packet is not an event packet, ignore it.
+				ev, data, err := p.event()
+				if err != nil {
+					continue
+				}
+				if handler, ok := h[ev]; ok {
+					if err := handler(data); err != nil {
+						return fmt.Errorf("socketio: handler failed: %w", err)
+					}
 				}
 			}
 		}
-	}
+	})
+	g.Go(func() error {
+		return conn.ReadLoop(gctx, recv)
+	})
+	g.Go(func() error {
+		return conn.WriteLoop(gctx, send)
+	})
+
+	err := g.Wait()
+	return err
 }
 
 func handshake(ctx context.Context, c *socket.Conn) error {

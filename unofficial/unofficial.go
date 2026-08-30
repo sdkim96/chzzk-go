@@ -31,8 +31,20 @@ type Client struct {
 	// user ID hash, empty if anonymous
 	uid string
 
-	Chat *ChatService
-	Live *LiveService
+	Chat   *ChatService
+	Live   *LiveService
+	Search *SearchService
+}
+
+// SearchedChannel represents a channel returned from the search API.
+type SearchedChannel struct {
+	ID          string `json:"channelId"`
+	Name        string `json:"channelName"`
+	ImageURL    string `json:"channelImageUrl"`
+	Description string `json:"channelDescription"`
+	Follower    int    `json:"followerCount"`
+	OpenLive    bool   `json:"openLive"`
+	Verified    bool   `json:"verifiedMark"`
 }
 
 // New creats a new unofficial client for accessing unofficial features of the Chzzk API.
@@ -92,6 +104,7 @@ func (u *Client) WithCookie(ctx context.Context, nidAut, nidSes string) (*Client
 func (u *Client) initialize() {
 	u.Chat = &ChatService{uc: u}
 	u.Live = &LiveService{uc: u}
+	u.Search = &SearchService{uc: u}
 }
 
 func (u *Client) copy() *Client {

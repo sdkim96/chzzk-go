@@ -16,7 +16,7 @@ func Test_ChatConn(t *testing.T) {
 	if err := conn.Dial(ctx, "wss://echo.websocket.org"); err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
-	defer conn.Close(ctx, ws.StatusNormalClosure, "test done")
+	defer conn.Close(ws.StatusNormalClosure, "test done")
 }
 
 func Test_ChatConn_Loop(t *testing.T) {
@@ -24,7 +24,7 @@ func Test_ChatConn_Loop(t *testing.T) {
 	defer cancel()
 
 	conn := NewConn(http.DefaultClient)
-	defer conn.Close(ctx, ws.StatusNormalClosure, "test done")
+	defer conn.Close(ws.StatusNormalClosure, "test done")
 	if err := conn.Dial(ctx, "wss://echo.websocket.org"); err != nil {
 		t.Fatalf("failed to dial: %v", err)
 	}
@@ -33,8 +33,14 @@ func Test_ChatConn_Loop(t *testing.T) {
 	sendCh := make(chan []byte)
 
 	go func() {
-		if err := conn.Loop(ctx, recvCh, sendCh); err != nil {
-			t.Logf("Loop error: %v", err)
+		if err := conn.ReadLoop(ctx, recvCh); err != nil {
+			t.Logf("ReadLoop error: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := conn.WriteLoop(ctx, sendCh); err != nil {
+			t.Logf("WriteLoop error: %v", err)
 		}
 	}()
 
