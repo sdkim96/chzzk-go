@@ -179,7 +179,7 @@ func Test_ChatService_UpdateSettings(t *testing.T) {
 		Kind:          ChatAvailableForAll,
 		AuthorityMode: Ptr(AuthorityModeAll),
 		FollowerSetting: &ChatFollowerSetting{
-			MinFollowerMinute:              0,
+			MinFollowerMinute:             0,
 			AllowSubscriberInFollowerMode: false,
 		},
 		SlowModeSec: Ptr(3),
